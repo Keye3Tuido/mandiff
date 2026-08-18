@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mandiff.local/schema/review-state-1.1.json",
+  "title": "ManDiff reviewer-state overlay",
+  "type": "object",
+  "required": ["schema_version", "report_id", "diff_digest", "saved_at", "units"],
+  "properties": {
+    "schema_version": {"const": "1.1"},
+    "report_id": {"type": "string", "minLength": 1},
+    "diff_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "saved_at": {"type": "string", "format": "date-time"},
+    "units": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["decision", "check_results", "finding_reviews", "note"],
+        "properties": {
+          "decision": {"enum": ["pending", "accepted", "changes_requested", "needs_evidence"]},
+          "check_results": {
+            "type": "object",
+            "additionalProperties": {"enum": ["unverified", "passed", "failed", "not_applicable"]}
+          },
+          "finding_reviews": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": ["decision", "rationale"],
+              "properties": {
+                "decision": {"enum": ["pending", "confirmed", "dismissed"]},
+                "rationale": {"type": "string"}
+              },
+              "additionalProperties": false
+            }
+          },
+          "note": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,228 @@
+{
+  "schema_version": "1.3",
+  "report": {
+    "id": "sample-review",
+    "repository": "example/repository",
+    "selector": "abc123^..abc123",
+    "source_artifact_ids": ["S01"],
+    "base": "0000000000000000000000000000000000000000",
+    "head": "1111111111111111111111111111111111111111",
+    "diff_digest": "55ae8ed080919a3b5fb09ef89d293ef7ef21e6c1a84632ef6efa5197bab1587b",
+    "diff_bytes": 112,
+    "mutable": false,
+    "drift": "immutable",
+    "scope_exclusions": []
+  },
+  "source_artifacts": [
+    {
+      "id": "S01",
+      "provenance": "commit",
+      "selector": "abc123^..abc123",
+      "acquisition": "git diff --no-ext-diff --binary abc123^ abc123",
+      "captured_at": "2026-01-01T00:00:00Z",
+      "base": "0000000000000000000000000000000000000000",
+      "head": "1111111111111111111111111111111111111111",
+      "diff_base64": "ZGlmZiAtLWdpdCBhL3NyYy9leGFtcGxlLnR4dCBiL3NyYy9leGFtcGxlLnR4dAotLS0gYS9zcmMvZXhhbXBsZS50eHQKKysrIGIvc3JjL2V4YW1wbGUudHh0CkBAIC0xICsxIEBACi1vbGQKK25ldw==",
+      "diff_digest": "5ebfc69042f193724c2466e464faa43b72ed85ca50a949243192e62d06633c95",
+      "diff_bytes": 112,
+      "display_digest": "5ebfc69042f193724c2466e464faa43b72ed85ca50a949243192e62d06633c95",
+      "display_bytes": 112,
+      "redacted": false,
+      "mutable": false,
+      "drift": "immutable"
+    }
+  ],
+  "summary": {
+    "files": 1,
+    "hunks": 1,
+    "additions": 1,
+    "deletions": 1,
+    "evidence_total": 1,
+    "evidence_validated": 1
+  },
+  "outcome": {
+    "confirmed": [
+      {"statement": "The selected hunk replaces the stored value.", "refs": ["U01", "CL01"]}
+    ],
+    "defects": [],
+    "unproven": [
+      {"statement": "The selected evidence does not execute the consumer.", "refs": ["U01", "V01"]}
+    ],
+    "recommendation": {
+      "disposition": "expand_scope",
+      "reason": "Run the consumer check before acceptance.",
+      "refs": ["U01", "V01"]
+    }
+  },
+  "context_sources": [
+    {
+      "id": "C01",
+      "kind": "caller",
+      "snapshot": "head",
+      "revision": "1111111111111111111111111111111111111111",
+      "path": "src/reader.txt",
+      "locator": "read_value",
+      "summary": "Reads the stored value at startup.",
+      "fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "excerpt": "Reads the value at startup."
+    }
+  ],
+  "requirements": [
+    {"id": "RQ01", "kind": "requirement", "statement": "Use the new value."}
+  ],
+  "files": [
+    {"id": "F01", "path": "src/example.txt", "status": "modified", "additions": 1, "deletions": 1, "unit_ids": ["U01"]}
+  ],
+  "units": [
+    {
+      "id": "U01",
+      "order": 1,
+      "title": "Update the stored value",
+      "lane": "main",
+      "importance": "normal",
+      "question": "Does the reader receive the new value?",
+      "contract": "At startup, read_value returns the literal stored in src/example.txt.",
+      "conclusion": {
+        "status": "partially_confirmed",
+        "statement": "The literal changes, but downstream behavior remains unverified.",
+        "evidence_refs": ["F01-H01", "C01"]
+      },
+      "before": "The stored literal is old.",
+      "after": "The stored literal is new.",
+      "background": "The value is read once at startup.",
+      "entry_points": ["read_value"],
+      "call_path": ["startup", "read_value", "src/example.txt"],
+      "mechanism_steps": [
+        "Replace the stored literal.",
+        "The existing reader loads the same file at startup.",
+        "The returned value changes from old to new."
+      ],
+      "invariants": [
+        {"status": "preserved", "statement": "The file remains a one-line value.", "evidence_refs": ["F01-H01"]}
+      ],
+      "consumers": ["startup"],
+      "compatibility": ["No format change; only the literal changes."],
+      "claims": [
+        {"id": "CL01", "statement": "The selected hunk replaces old with new.", "kind": "observed", "evidence_refs": ["F01-H01"], "confidence": "high"},
+        {"id": "CL02", "statement": "read_value reads this file at startup.", "kind": "contextual", "evidence_refs": ["C01"], "confidence": "high"}
+      ],
+      "failure_modes": [
+        {
+          "id": "FM01",
+          "trigger": "A consumer still expects old",
+          "effect": "Startup behavior differs from its expectation",
+          "detection_or_mitigation": "Run the startup contract check",
+          "evidence_refs": ["F01-H01", "C01"],
+          "claim_ids": ["CL01", "CL02"]
+        }
+      ],
+      "unknowns": ["No downstream integration test was included in the selected change."],
+      "completeness": {
+        "contract": "complete",
+        "entry_points": "complete",
+        "call_path": "complete",
+        "mechanism": "complete",
+        "invariants": "complete",
+        "consumers": "complete",
+        "compatibility": "complete",
+        "failure_modes": "complete",
+        "checks": "complete",
+        "unknowns": "complete"
+      },
+      "depends_on": [],
+      "files": ["src/example.txt"],
+      "symbols": ["example_value"],
+      "evidence_ids": ["F01-H01"],
+      "changed_lines": 2,
+      "diff": "diff --git a/src/example.txt b/src/example.txt\n--- a/src/example.txt\n+++ b/src/example.txt\n@@ -1 +1 @@\n-old\n+new",
+      "diff_segments": [
+        {"source_artifact_id": "S01", "byte_start": 0, "byte_length": 112}
+      ],
+      "anchors": [
+        {
+          "evidence_id": "F01-H01",
+          "source_artifact_id": "S01",
+          "kind": "text_hunk",
+          "provenance": "commit",
+          "path": "src/example.txt",
+          "old_path": "src/example.txt",
+          "new_path": "src/example.txt",
+          "ordinal": 1,
+          "header": "@@ -1 +1 @@",
+          "old_start": 1,
+          "old_lines": 1,
+          "new_start": 1,
+          "new_lines": 1,
+          "byte_start": 91,
+          "byte_length": 21,
+          "label": "src/example.txt · value replacement",
+          "summary": "Replaces the stored literal from old to new.",
+          "fingerprint": "3dd9b61bebb49ba375d6ff6e016a91472be06b1c0eddc4eacee07f3fc75ade88",
+          "display_fingerprint": "3dd9b61bebb49ba375d6ff6e016a91472be06b1c0eddc4eacee07f3fc75ade88"
+        }
+      ],
+      "checks": [
+        {
+          "id": "C1",
+          "label": "Exercise the startup contract",
+          "setup": "Install the changed file",
+          "action": "Run startup and observe read_value",
+          "expected": "The returned value is new",
+          "claim_ids": ["CL01", "CL02"]
+        }
+      ],
+      "finding_ids": ["R01"],
+      "verification_ids": ["V01"]
+    }
+  ],
+  "evidence_ledger": [
+    {
+      "evidence_id": "F01-H01",
+      "source_artifact_id": "S01",
+      "kind": "text_hunk",
+      "byte_start": 91,
+      "byte_length": 21,
+      "unit_id": "U01",
+      "lane": "main",
+      "importance": "normal",
+      "state": "validated",
+      "fingerprint": "3dd9b61bebb49ba375d6ff6e016a91472be06b1c0eddc4eacee07f3fc75ade88",
+      "display_fingerprint": "3dd9b61bebb49ba375d6ff6e016a91472be06b1c0eddc4eacee07f3fc75ade88"
+    }
+  ],
+  "findings": [
+    {
+      "id": "R01",
+      "category": "risk",
+      "severity": "low",
+      "unit_id": "U01",
+      "evidence_ids": ["F01-H01", "C01"],
+      "claim_ids": ["CL01", "CL02"],
+      "failure_mode_ids": ["FM01"],
+      "description": "A consumer expectation requires a runtime check."
+    }
+  ],
+  "verification": [
+    {
+      "id": "V01",
+      "behavior": "The startup reader returns new.",
+      "status": "not_run",
+      "existing_evidence": "Static source only.",
+      "setup": "Install the changed file",
+      "action": "Run startup",
+      "expected": "read_value returns new",
+      "claim_ids": ["CL01", "CL02"],
+      "unit_ids": ["U01"]
+    }
+  ],
+  "coverage": {
+    "total": 1,
+    "assigned_once": 1,
+    "presented_once": 1,
+    "validated": 1,
+    "redacted": 0,
+    "missing": 0,
+    "duplicated": 0,
+    "unknown": 0
+  }
+}

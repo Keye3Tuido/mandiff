@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mandiff.local/schema/review-model-1.3.json",
+  "title": "ManDiff review model",
+  "type": "object",
+  "required": ["schema_version", "report", "source_artifacts", "summary", "outcome", "context_sources", "requirements", "files", "units", "evidence_ledger", "findings", "verification", "coverage"],
+  "properties": {
+    "schema_version": { "const": "1.3" },
+    "report": {
+      "type": "object",
+      "required": ["id", "repository", "selector", "source_artifact_ids", "diff_digest", "diff_bytes", "mutable", "drift", "scope_exclusions"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "repository": { "type": "string", "minLength": 1 },
+        "selector": { "type": "string", "minLength": 1 },
+        "source_artifact_ids": { "$ref": "#/$defs/nonempty_unique_strings" },
+        "base": { "type": "string" },
+        "head": { "type": "string" },
+        "diff_digest": { "$ref": "#/$defs/fingerprint" },
+        "diff_bytes": { "type": "integer", "minimum": 0 },
+        "mutable": { "type": "boolean" },
+        "drift": { "enum": ["immutable", "unchanged", "stale", "unknown"] },
+        "scope_exclusions": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "source_artifacts": { "type": "array", "items": { "$ref": "#/$defs/source_artifact" }, "minItems": 1 },
+    "summary": {
+      "type": "object",
+      "required": ["files", "hunks", "additions", "deletions", "evidence_total", "evidence_validated"],
+      "properties": {
+        "files": { "type": "integer", "minimum": 0 },
+        "hunks": { "type": "integer", "minimum": 0 },
+        "additions": { "type": "integer", "minimum": 0 },
+        "deletions": { "type": "integer", "minimum": 0 },
+        "evidence_total": { "type": "integer", "minimum": 0 },
+        "evidence_validated": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "outcome": {
+      "type": "object",
+      "required": ["confirmed", "defects", "unproven", "recommendation"],
+      "properties": {
+        "confirmed": { "type": "array", "items": { "$ref": "#/$defs/outcome_item" } },
+        "defects": { "type": "array", "items": { "$ref": "#/$defs/outcome_item" } },
+        "unproven": { "type": "array", "items": { "$ref": "#/$defs/outcome_item" } },
+        "recommendation": {
+          "type": "object",
+          "required": ["disposition", "reason", "refs"],
+          "properties": {
+            "disposition": { "enum": ["accept", "request_changes", "expand_scope"] },
+            "reason": { "type": "string", "minLength": 1 },
+            "refs": { "$ref": "#/$defs/nonempty_unique_strings" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "context_sources": { "type": "array", "items": { "$ref": "#/$defs/context_source" } },
+    "requirements": { "type": "array", "items": { "$ref": "#/$defs/reported_source" } },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "path", "status", "additions", "deletions", "unit_ids"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^F[0-9]{2,}$" },
+          "path": { "type": "string", "minLength": 1 },
+          "status": { "type": "string" },
+          "additions": { "type": "integer", "minimum": 0 },
+          "deletions": { "type": "integer", "minimum": 0 },
+          "unit_ids": { "$ref": "#/$defs/unique_strings" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "units": { "type": "array", "items": { "$ref": "#/$defs/unit" } },
+    "evidence_ledger": { "type": "array", "items": { "$ref": "#/$defs/evidence_ledger_item" } },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+    "verification": { "type": "array", "items": { "$ref": "#/$defs/verification" } },
+    "coverage": {
+      "type": "object",
+      "required": ["total", "assigned_once", "presented_once", "validated", "redacted", "missing", "duplicated", "unknown"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "assigned_once": { "type": "integer", "minimum": 0 },
+        "presented_once": { "type": "integer", "minimum": 0 },
+        "validated": { "type": "integer", "minimum": 0 },
+        "redacted": { "type": "integer", "minimum": 0 },
+        "missing": { "type": "integer", "minimum": 0 },
+        "duplicated": { "type": "integer", "minimum": 0 },
+        "unknown": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "unique_strings": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "nonempty_unique_strings": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1, "uniqueItems": true },
+    "source_artifact": {
+      "type": "object",
+      "required": ["id", "provenance", "selector", "acquisition", "captured_at", "base", "head", "diff_base64", "diff_digest", "diff_bytes", "display_digest", "display_bytes", "redacted", "mutable", "drift"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^S[0-9]{2,}$" },
+        "provenance": { "enum": ["unstaged", "staged", "commit", "commit_range", "pull_request", "patch"] },
+        "selector": { "type": "string", "minLength": 1 },
+        "acquisition": { "type": "string", "minLength": 1 },
+        "captured_at": { "type": "string", "format": "date-time" },
+        "base": { "type": "string" },
+        "head": { "type": "string" },
+        "diff_base64": { "type": "string", "contentEncoding": "base64" },
+        "diff_digest": { "$ref": "#/$defs/fingerprint" },
+        "diff_bytes": { "type": "integer", "minimum": 0 },
+        "display_digest": { "$ref": "#/$defs/fingerprint" },
+        "display_bytes": { "type": "integer", "minimum": 0 },
+        "redacted": { "type": "boolean" },
+        "mutable": { "type": "boolean" },
+        "drift": { "enum": ["immutable", "unchanged", "stale", "unknown"] }
+      },
+      "additionalProperties": false
+    },
+    "outcome_item": {
+      "type": "object",
+      "required": ["statement", "refs"],
+      "properties": {
+        "statement": { "type": "string", "minLength": 1 },
+        "refs": { "$ref": "#/$defs/nonempty_unique_strings" }
+      },
+      "additionalProperties": false
+    },
+    "context_source": {
+      "type": "object",
+      "required": ["id", "kind", "snapshot", "revision", "path", "locator", "summary", "fingerprint"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^C[0-9]{2,}$" },
+        "kind": { "enum": ["definition", "caller", "callee", "test", "schema", "configuration", "documentation"] },
+        "snapshot": { "enum": ["base", "head", "working_tree", "index", "provider", "patch"] },
+        "revision": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "locator": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" },
+        "excerpt": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "reported_source": {
+      "type": "object",
+      "required": ["id", "kind", "statement"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^(M|RQ)[0-9]{2,}$" },
+        "kind": { "enum": ["commit_message", "pull_request", "issue", "requirement"] },
+        "statement": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "anchor": {
+      "type": "object",
+      "required": ["evidence_id", "source_artifact_id", "kind", "provenance", "path", "old_path", "new_path", "ordinal", "header", "old_start", "old_lines", "new_start", "new_lines", "byte_start", "byte_length", "label", "summary", "fingerprint", "display_fingerprint"],
+      "properties": {
+        "evidence_id": { "type": "string", "minLength": 1 },
+        "source_artifact_id": { "type": "string", "pattern": "^S[0-9]{2,}$" },
+        "kind": { "enum": ["text_hunk", "binary", "rename", "copy", "mode", "empty_file", "submodule"] },
+        "provenance": { "type": "string", "minLength": 1 },
+        "path": { "type": "string" },
+        "old_path": { "type": "string" },
+        "new_path": { "type": "string" },
+        "ordinal": { "type": "integer", "minimum": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 },
+        "header": { "type": "string" },
+        "old_start": { "type": ["integer", "null"], "minimum": 0 },
+        "old_lines": { "type": ["integer", "null"], "minimum": 0 },
+        "new_start": { "type": ["integer", "null"], "minimum": 0 },
+        "new_lines": { "type": ["integer", "null"], "minimum": 0 },
+        "byte_start": { "type": "integer", "minimum": 0 },
+        "byte_length": { "type": "integer", "minimum": 1 },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" },
+        "display_fingerprint": { "$ref": "#/$defs/fingerprint" }
+      },
+      "additionalProperties": true
+    },
+    "claim": {
+      "type": "object",
+      "required": ["id", "statement", "kind", "evidence_refs", "confidence"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "statement": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["observed", "contextual", "reported", "inferred", "unknown"] },
+        "evidence_refs": { "$ref": "#/$defs/unique_strings" },
+        "confidence": { "enum": ["high", "medium", "low"] }
+      },
+      "additionalProperties": false
+    },
+    "check": {
+      "type": "object",
+      "required": ["id", "label", "setup", "action", "expected", "claim_ids"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "setup": { "type": "string", "minLength": 1 },
+        "action": { "type": "string", "minLength": 1 },
+        "expected": { "type": "string", "minLength": 1 },
+        "claim_ids": { "$ref": "#/$defs/nonempty_unique_strings" }
+      },
+      "additionalProperties": false
+    },
+    "invariant": {
+      "type": "object",
+      "required": ["status", "statement", "evidence_refs"],
+      "properties": {
+        "status": { "enum": ["added", "preserved", "removed", "unknown", "not_applicable"] },
+        "statement": { "type": "string", "minLength": 1 },
+        "evidence_refs": { "$ref": "#/$defs/unique_strings" }
+      },
+      "additionalProperties": false
+    },
+    "failure_mode": {
+      "type": "object",
+      "required": ["id", "trigger", "effect", "detection_or_mitigation", "evidence_refs", "claim_ids"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "trigger": { "type": "string", "minLength": 1 },
+        "effect": { "type": "string", "minLength": 1 },
+        "detection_or_mitigation": { "type": "string", "minLength": 1 },
+        "evidence_refs": { "$ref": "#/$defs/unique_strings" },
+        "claim_ids": { "$ref": "#/$defs/unique_strings" }
+      },
+      "additionalProperties": false
+    },
+    "completeness": {
+      "type": "object",
+      "required": ["contract", "entry_points", "call_path", "mechanism", "invariants", "consumers", "compatibility", "failure_modes", "checks", "unknowns"],
+      "additionalProperties": { "enum": ["complete", "unknown", "not_applicable"] }
+    },
+    "unit": {
+      "type": "object",
+      "required": ["id", "order", "title", "lane", "importance", "question", "contract", "conclusion", "before", "after", "background", "entry_points", "call_path", "mechanism_steps", "invariants", "consumers", "compatibility", "claims", "failure_modes", "unknowns", "completeness", "depends_on", "files", "symbols", "evidence_ids", "changed_lines", "diff", "diff_segments", "anchors", "checks", "finding_ids", "verification_ids"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^U[0-9]{2,}$" },
+        "order": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "lane": { "enum": ["main", "supporting"] },
+        "importance": { "enum": ["critical", "normal", "context"] },
+        "question": { "type": "string", "minLength": 1 },
+        "contract": { "type": "string", "minLength": 1 },
+        "conclusion": {
+          "type": "object",
+          "required": ["status", "statement", "evidence_refs"],
+          "properties": {
+            "status": { "enum": ["confirmed", "partially_confirmed", "defect", "unproven"] },
+            "statement": { "type": "string", "minLength": 1 },
+            "evidence_refs": { "$ref": "#/$defs/unique_strings" }
+          },
+          "additionalProperties": false
+        },
+        "before": { "type": "string", "minLength": 1 },
+        "after": { "type": "string", "minLength": 1 },
+        "background": { "type": "string", "minLength": 1 },
+        "entry_points": { "$ref": "#/$defs/unique_strings" },
+        "call_path": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "mechanism_steps": { "type": "array", "items": { "type": "string" }, "minItems": 3, "maxItems": 7 },
+        "invariants": { "type": "array", "items": { "$ref": "#/$defs/invariant" }, "minItems": 1 },
+        "consumers": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "compatibility": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "claims": { "type": "array", "items": { "$ref": "#/$defs/claim" }, "minItems": 1 },
+        "failure_modes": { "type": "array", "items": { "$ref": "#/$defs/failure_mode" }, "minItems": 1 },
+        "unknowns": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "completeness": { "$ref": "#/$defs/completeness" },
+        "depends_on": { "$ref": "#/$defs/unique_strings" },
+        "files": { "$ref": "#/$defs/unique_strings" },
+        "symbols": { "$ref": "#/$defs/unique_strings" },
+        "evidence_ids": { "type": "array", "items": { "type": "string" }, "minItems": 1, "uniqueItems": true },
+        "changed_lines": { "type": "integer", "minimum": 0 },
+        "diff": { "type": "string" },
+        "diff_segments": { "type": "array", "items": { "$ref": "#/$defs/diff_segment" } },
+        "anchors": { "type": "array", "items": { "$ref": "#/$defs/anchor" }, "minItems": 1 },
+        "checks": { "type": "array", "items": { "$ref": "#/$defs/check" }, "minItems": 1 },
+        "finding_ids": { "$ref": "#/$defs/unique_strings" },
+        "verification_ids": { "$ref": "#/$defs/unique_strings" }
+      },
+      "additionalProperties": true
+    },
+    "finding": {
+      "type": "object",
+      "required": ["id", "category", "unit_id", "evidence_ids", "claim_ids", "failure_mode_ids", "description"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "category": { "enum": ["defect", "risk", "design_question", "missing_context"] },
+        "severity": { "enum": ["critical", "high", "moderate", "low", "none"] },
+        "unit_id": { "type": "string" },
+        "evidence_ids": { "$ref": "#/$defs/unique_strings" },
+        "claim_ids": { "$ref": "#/$defs/unique_strings" },
+        "failure_mode_ids": { "$ref": "#/$defs/unique_strings" },
+        "description": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "verification": {
+      "type": "object",
+      "required": ["id", "behavior", "status", "setup", "action", "expected", "claim_ids", "unit_ids"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "behavior": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["verified", "static_only", "not_run", "missing", "failed", "out_of_scope"] },
+        "existing_evidence": { "type": "string" },
+        "setup": { "type": "string", "minLength": 1 },
+        "action": { "type": "string", "minLength": 1 },
+        "expected": { "type": "string", "minLength": 1 },
+        "claim_ids": { "$ref": "#/$defs/nonempty_unique_strings" },
+        "unit_ids": { "$ref": "#/$defs/nonempty_unique_strings" }
+      },
+      "additionalProperties": true
+    },
+    "evidence_ledger_item": {
+      "type": "object",
+      "required": ["evidence_id", "source_artifact_id", "kind", "byte_start", "byte_length", "unit_id", "lane", "importance", "state", "fingerprint", "display_fingerprint"],
+      "properties": {
+        "evidence_id": { "type": "string", "minLength": 1 },
+        "source_artifact_id": { "type": "string", "pattern": "^S[0-9]{2,}$" },
+        "kind": { "enum": ["text_hunk", "binary", "rename", "copy", "mode", "empty_file", "submodule"] },
+        "byte_start": { "type": "integer", "minimum": 0 },
+        "byte_length": { "type": "integer", "minimum": 1 },
+        "unit_id": { "type": ["string", "null"] },
+        "lane": { "type": ["string", "null"], "enum": ["main", "supporting", null] },
+        "importance": { "type": ["string", "null"], "enum": ["critical", "normal", "context", null] },
+        "state": { "enum": ["discovered", "assigned", "presented", "validated", "redacted"] },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" },
+        "display_fingerprint": { "$ref": "#/$defs/fingerprint" }
+      },
+      "additionalProperties": false
+    },
+    "diff_segment": {
+      "type": "object",
+      "required": ["source_artifact_id", "byte_start", "byte_length"],
+      "properties": {
+        "source_artifact_id": { "type": "string", "pattern": "^S[0-9]{2,}$" },
+        "byte_start": { "type": "integer", "minimum": 0 },
+        "byte_length": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

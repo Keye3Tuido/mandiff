@@ -1,0 +1,4 @@
+interface:
+  display_name: "ManDiff"
+  short_description: "将大型改动转成跨 Agent 可移植、可视化的证据审阅指南"
+  default_prompt: "Use $mandiff to turn the specified change into a portable, visual-first, evidence-complete tutorial for human review."

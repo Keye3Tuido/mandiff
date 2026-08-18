@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ManDiff review</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: light-dark(#f6f7f9, #16191d);
+      --surface: light-dark(#ffffff, #20242a);
+      --text: light-dark(#17202a, #edf1f5);
+      --muted: light-dark(#65717d, #a9b3bd);
+      --line: light-dark(#d7dde4, #3a424b);
+      --soft: light-dark(#eef1f4, #292f36);
+      --active: light-dark(#273a4d, #dce6ee);
+      --active-text: light-dark(#ffffff, #17202a);
+      --add: light-dark(#dff2e9, #183c31);
+      --del: light-dark(#f8e2e2, #482527);
+      --danger: light-dark(#b42e38, #ff858c);
+      --focus: light-dark(#187d69, #5fd1b5);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+    button, input, select, textarea { font: inherit; }
+    button, input, select, textarea { color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+    button { padding: 7px 10px; cursor: pointer; }
+    button[aria-pressed="true"] { background: var(--active); color: var(--active-text); border-color: var(--active); }
+    button:disabled { opacity: .45; cursor: default; }
+    input, select, textarea { padding: 7px 8px; width: 100%; }
+    textarea { resize: vertical; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 20px; font-weight: 500; }
+    h2 { font-size: 18px; font-weight: 500; }
+    h3 { font-size: 14px; font-weight: 500; }
+    .shell { max-width: 1320px; margin: 0 auto; padding: 22px; display: grid; gap: 18px; }
+    .topbar, .section-head, .detail-head, .nav-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .topbar { border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+    .scope { color: var(--muted); }
+    .controls { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
+    .field { display: grid; gap: 4px; min-width: 150px; color: var(--muted); }
+    .outcome { display: grid; gap: 10px; }
+    .outcome-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; border-block: 1px solid var(--line); padding-block: 12px; }
+    .outcome-grid > div, .unit-conclusion { display: grid; gap: 5px; align-content: start; min-width: 0; }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    .layout { display: grid; grid-template-columns: minmax(220px, .55fr) minmax(0, 1.45fr); gap: 20px; align-items: start; }
+    .layout > *, .review-grid > *, .table-wrap { min-width: 0; max-width: 100%; }
+    .rail { display: grid; gap: 16px; min-width: 0; }
+    .unit-list { display: grid; gap: 8px; }
+    .unit { width: 100%; text-align: left; display: grid; gap: 3px; }
+    .unit-meta { font-size: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .verify-complete, .decision-accepted { color: var(--focus); font-weight: 500; }
+    .level-critical { color: var(--danger); font-weight: 500; }
+    .level-normal { color: var(--focus); }
+    .level-context, .verify-pending, .decision-pending { color: var(--muted); }
+    .verify-failed, .decision-changes { color: var(--danger); font-weight: 500; }
+    .decision-evidence { color: var(--focus); }
+    .table-wrap { max-width: 100%; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; padding: 7px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 500; }
+    .detail { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 16px; min-width: 0; max-width: 100%; }
+    .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+    .badge { background: var(--soft); border-radius: 999px; padding: 3px 7px; font-size: 12px; }
+    .question { border-left: 3px solid var(--focus); padding-left: 11px; display: grid; gap: 3px; }
+    .before-after { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; border-block: 1px solid var(--line); padding-block: 12px; }
+    .before-after > div { display: grid; gap: 4px; }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .facts > div { min-width: 0; overflow-wrap: anywhere; }
+    .analysis { border-block: 1px solid var(--line); padding-block: 12px; }
+    .analysis summary { cursor: pointer; }
+    .analysis-body { display: grid; gap: 12px; padding-top: 12px; }
+    .analysis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .analysis-grid > div { min-width: 0; display: grid; gap: 5px; }
+    .compact-list { margin: 0; padding-left: 20px; }
+    .claim-kind { white-space: nowrap; }
+    .review-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(230px, .65fr); gap: 18px; align-items: start; }
+    .diff-tools { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; margin-top: 8px; }
+    pre { margin: 8px 0 0; width: 100%; max-width: 100%; max-height: 560px; overflow: auto; background: var(--soft); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+    .line { display: block; min-width: max-content; white-space: pre; }
+    .line.add { background: var(--add); }
+    .line.del { background: var(--del); }
+    .line.hunk { color: var(--muted); }
+    mark { background: color-mix(in srgb, var(--focus) 28%, transparent); color: inherit; }
+    .side { display: grid; gap: 12px; }
+    .checks { display: grid; gap: 8px; }
+    .check { display: grid; gap: 5px; }
+    .check-options { display: flex; gap: 10px; flex-wrap: wrap; }
+    .check-option { display: inline-flex; gap: 5px; align-items: center; }
+    .check-option input { width: auto; margin: 0; }
+    .finding { border-left: 3px solid var(--danger); padding-left: 10px; }
+    .finding-item { display: grid; gap: 7px; padding-block: 7px; }
+    .finding-item + .finding-item { border-top: 1px solid var(--line); }
+    .finding-rationale { display: grid; gap: 4px; }
+    .evidence-ref { display: block; margin-block: 3px; overflow-wrap: anywhere; }
+    .decisions { display: flex; gap: 7px; flex-wrap: wrap; }
+    .nav-row { border-top: 1px solid var(--line); padding-top: 14px; }
+    .final-report { border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 10px; }
+    .final-report pre { max-height: none; white-space: pre-wrap; }
+    .status { min-height: 1.4em; color: var(--muted); }
+    .status.error, .danger { color: var(--danger); }
+    .hidden { display: none !important; }
+    @media (max-width: 760px) {
+      .shell { padding: 15px; }
+      .outcome-grid, .layout, .facts, .analysis-grid, .review-grid, .before-after { grid-template-columns: 1fr; }
+      .before-after > span { text-align: center; transform: rotate(90deg); }
+      .controls { align-items: stretch; }
+      .field { min-width: min(100%, 190px); }
+      .detail-head, .nav-row { align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div><h1>ManDiff review</h1><div id="scope" class="scope small"></div></div>
+      <div class="controls">
+        <button id="export-state" type="button">Export review</button>
+        <label><span class="hidden">Import review</span><input id="import-state" type="file" accept="application/json,.json"></label>
+      </div>
+    </header>
+    <div id="status" class="status small" role="status"></div>
+
+    <section class="outcome" aria-labelledby="outcome-title">
+      <div class="section-head"><h3 id="outcome-title">Review outcome</h3><span id="outcome-recommendation" class="small muted"></span></div>
+      <div class="outcome-grid">
+        <div><span class="badge">Confirmed</span><ul id="outcome-confirmed" class="compact-list"></ul></div>
+        <div><span class="danger">Defects</span><ul id="outcome-defects" class="compact-list"></ul></div>
+        <div><span class="badge">Unproven</span><ul id="outcome-unproven" class="compact-list"></ul></div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <aside class="rail">
+        <section>
+          <div class="section-head"><h3>Review path</h3><span id="decision-progress" class="small muted"></span></div>
+          <p class="small muted">Critical affects the overall disposition · Normal is a substantive local change · Context covers tests, docs, or mechanical wiring</p>
+          <nav id="unit-list" class="unit-list" aria-label="Review units"></nav>
+        </section>
+        <section>
+          <div class="section-head"><h3>Change surface</h3><span class="small muted">Files to units</span></div>
+          <div class="table-wrap"><table><thead><tr><th>File</th><th>Units</th><th>Change</th></tr></thead><tbody id="file-rows"></tbody></table></div>
+        </section>
+        <section>
+          <div class="section-head"><h3>Findings</h3><span class="small muted">Evidence-backed</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Type</th><th>Finding</th></tr></thead><tbody id="finding-rows"></tbody></table></div>
+        </section>
+        <section>
+          <div class="section-head"><h3>Verification</h3><span class="small muted">Report evidence</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Status</th><th>Behavior</th><th>Units</th></tr></thead><tbody id="verification-rows"></tbody></table></div>
+        </section>
+        <section>
+          <div class="section-head"><h3>Evidence coverage</h3><span id="coverage-summary" class="small muted"></span></div>
+          <div id="coverage-detail" class="small"></div>
+          <details class="analysis"><summary>Evidence ledger</summary><div class="table-wrap"><table><thead><tr><th>Evidence</th><th>Source</th><th>Unit</th><th>State</th></tr></thead><tbody id="ledger-rows"></tbody></table></div></details>
+        </section>
+      </aside>
+
+      <article id="detail" class="detail" aria-live="polite">
+        <header class="detail-head"><div><div id="unit-order" class="small muted"></div><h2 id="unit-title"></h2></div><div id="unit-badges" class="badges"></div></header>
+        <div class="question"><span class="small muted">Review question</span><strong id="unit-question"></strong></div>
+        <div class="unit-conclusion"><span id="unit-conclusion-status" class="badge"></span><strong id="unit-conclusion"></strong></div>
+        <div class="before-after"><div><span class="small muted">Before</span><p id="unit-before"></p></div><span aria-hidden="true">→</span><div><span class="small muted">After</span><p id="unit-after"></p></div></div>
+        <div class="facts"><div><span class="small muted">Depends on</span><div id="unit-depends"></div></div><div><span class="small muted">Evidence</span><div id="unit-evidence"></div></div><div><span class="small muted">Files and symbols</span><div id="unit-surface"></div></div></div>
+        <details class="analysis">
+          <summary>Evidence chain and context</summary>
+          <div class="analysis-body"><div><span class="small muted">Behavior contract</span><p id="unit-contract"></p></div><div><span class="small muted">Required background</span><p id="unit-background"></p></div>
+          <div class="analysis-grid">
+            <div><span class="small muted">Entry and direct path</span><div id="unit-call-path"></div></div>
+            <div><span class="small muted">Consumers and compatibility</span><div id="unit-compatibility"></div></div>
+            <div><span class="small muted">Mechanism</span><ol id="unit-mechanism" class="compact-list"></ol></div>
+            <div><span class="small muted">Invariants</span><ul id="unit-invariants" class="compact-list"></ul></div>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Kind</th><th>Claim</th><th>Evidence</th><th>Confidence</th></tr></thead><tbody id="unit-claims"></tbody></table></div>
+          <div class="analysis-grid"><div><span class="small muted">Concrete failure modes</span><ul id="unit-failures" class="compact-list"></ul></div><div><span class="small muted">Unknowns</span><ul id="unit-unknowns" class="compact-list"></ul></div></div></div>
+        </details>
+        <div class="review-grid">
+          <section>
+            <div class="section-head"><h3 id="evidence-title">Exact diff</h3><span id="diff-count" class="small muted"></span></div>
+            <div class="diff-tools"><label class="field">Find in diff<input id="diff-search" type="search" placeholder="Symbol or text"></label></div>
+            <pre aria-label="Selected unit diff"><code id="diff"></code></pre>
+          </section>
+          <aside class="side">
+            <div class="section-head"><h3>Human checks</h3><span id="check-progress" class="small muted"></span></div>
+            <div id="checks" class="checks"></div>
+            <div id="finding" class="finding"></div>
+            <label class="field">Reviewer note<textarea id="review-note" rows="5"></textarea></label>
+            <span class="small muted">Decision</span>
+            <div class="decisions" role="group" aria-label="Review decision"><button type="button" data-decision="pending">Pending</button><button type="button" data-decision="accepted">Accept</button><button type="button" data-decision="changes_requested">Request changes</button><button type="button" data-decision="needs_evidence">Need evidence</button></div>
+            <div id="action-feedback" class="status small" aria-live="polite"></div>
+          </aside>
+        </div>
+        <footer class="nav-row"><button id="prev" type="button">Previous</button><span id="position" class="small muted"></span><div class="controls"><button id="generate-final" type="button">Generate human conclusion</button><button id="next-unresolved" type="button">Next unresolved</button><button id="next" type="button">Next</button></div></footer>
+        <section id="final-report" class="final-report hidden"><div class="section-head"><h3>Human review conclusion</h3><button id="download-final" type="button">Download Markdown</button></div><pre id="final-text"></pre></section>
+      </article>
+    </div>
+  </main>
+
+  <script id="mandiff-data" type="application/json">{"__replace_with_mandiff_report__":true}</script>
+  <script>
+    (() => {
+      const model = JSON.parse(document.getElementById('mandiff-data').textContent);
+      const units = Array.isArray(model.units) ? model.units : [];
+      const report = model.report || {};
+      const summary = model.summary || {};
+      const outcome = model.outcome || { confirmed: [], defects: [], unproven: [], recommendation: {} };
+      const stateKey = `mandiff:${report.diff_digest || 'template'}:review-state`;
+      let selected = 0;
+      let state = Object.fromEntries(units.map(unit => [unit.id, {
+        decision: 'pending',
+        check_results: Object.fromEntries((unit.checks || []).map(check => [check.id, 'unverified'])),
+        finding_reviews: Object.fromEntries((unit.finding_ids || []).map(id => [id, { decision: 'pending', rationale: '' }])),
+        note: ''
+      }]));
+
+      const byId = id => document.getElementById(id);
+      const escapeHtml = value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+      const labels = { pending: 'Pending', accepted: 'Accepted', changes_requested: 'Changes requested', needs_evidence: 'Need evidence' };
+      const checkLabels = { unverified: 'Unverified', passed: 'Passed', failed: 'Failed', not_applicable: 'Unrelated to this change' };
+      const findingLabels = { pending: 'Pending', confirmed: 'Confirmed', dismissed: 'Dismissed' };
+      const importanceClass = value => ({ critical: 'level-critical', normal: 'level-normal', context: 'level-context' }[value] || 'level-normal');
+      const decisionClass = value => ({ pending: 'decision-pending', accepted: 'decision-accepted', changes_requested: 'decision-changes', needs_evidence: 'decision-evidence' }[value] || 'decision-pending');
+      const verificationClass = results => results.includes('failed') ? 'verify-failed' : results.length && results.every(value => value !== 'unverified') ? 'verify-complete' : 'verify-pending';
+      const findingById = id => (model.findings || []).find(finding => finding.id === id);
+      const evidenceCatalog = new Map();
+      for (const unit of units) evidenceCatalog.set(unit.id, `Review unit · ${unit.title}`);
+      for (const source of model.context_sources || []) evidenceCatalog.set(source.id, `${source.path}${source.locator ? ` · ${source.locator}` : ''} · ${source.summary}`);
+      for (const requirement of model.requirements || []) evidenceCatalog.set(requirement.id, `Requirement · ${requirement.statement}`);
+      for (const unit of units) for (const anchor of unit.anchors || []) evidenceCatalog.set(anchor.evidence_id, `${anchor.label || anchor.path} · ${anchor.summary || anchor.kind}`);
+      for (const unit of units) for (const claim of unit.claims || []) evidenceCatalog.set(claim.id, `Claim · ${claim.statement}`);
+      for (const finding of model.findings || []) evidenceCatalog.set(finding.id, `Finding · ${finding.description}`);
+      for (const verification of model.verification || []) evidenceCatalog.set(verification.id, `Verification · ${verification.behavior}`);
+
+      const evidenceRef = id => `<span class="evidence-ref"><code>${escapeHtml(id)}</code> · ${escapeHtml(evidenceCatalog.get(id) || 'Reference description unavailable')}</span>`;
+      const evidenceRefs = ids => (ids || []).map(evidenceRef).join('') || '<span class="small muted">None</span>';
+
+      const overlay = () => ({ schema_version: '1.1', report_id: report.id, diff_digest: report.diff_digest, saved_at: new Date().toISOString(), units: state });
+      const save = () => { try { localStorage.setItem(stateKey, JSON.stringify(overlay())); } catch (error) {} };
+      const apply = value => {
+        if (!value || value.report_id !== report.id || value.diff_digest !== report.diff_digest) throw new Error('Review state does not match this frozen diff');
+        if (!['1.0', '1.1'].includes(value.schema_version)) throw new Error(`Unsupported review-state schema: ${value.schema_version || 'missing'}`);
+        const knownUnits = new Set(units.map(unit => unit.id));
+        for (const id of Object.keys(value.units || {})) if (!knownUnits.has(id)) throw new Error(`Unknown review unit: ${id}`);
+        for (const unit of units) {
+          const incoming = value.units?.[unit.id];
+          if (!incoming) continue;
+          const knownChecks = new Set((unit.checks || []).map(check => check.id));
+          const knownFindings = new Set(unit.finding_ids || []);
+          for (const id of Object.keys(incoming.check_results || {})) if (!knownChecks.has(id)) throw new Error(`Unknown check in ${unit.id}: ${id}`);
+          const incomingFindingIds = new Set([...Object.keys(incoming.finding_reviews || {}), ...Object.keys(incoming.finding_decisions || {})]);
+          for (const id of incomingFindingIds) if (!knownFindings.has(id)) throw new Error(`Unknown finding in ${unit.id}: ${id}`);
+          state[unit.id] = {
+            decision: ['pending', 'accepted', 'changes_requested', 'needs_evidence'].includes(incoming.decision) ? incoming.decision : 'pending',
+            check_results: Object.fromEntries((unit.checks || []).map(check => {
+              const legacy = Array.isArray(incoming.completed_checks) && incoming.completed_checks.includes(check.id) ? 'passed' : 'unverified';
+              const result = incoming.check_results?.[check.id];
+              return [check.id, ['unverified', 'passed', 'failed', 'not_applicable'].includes(result) ? result : legacy];
+            })),
+            finding_reviews: Object.fromEntries((unit.finding_ids || []).map(id => {
+              const review = incoming.finding_reviews?.[id];
+              const legacyDecision = incoming.finding_decisions?.[id];
+              const decision = typeof review === 'object' ? review.decision : legacyDecision;
+              return [id, {
+                decision: ['pending', 'confirmed', 'dismissed'].includes(decision) ? decision : 'pending',
+                rationale: typeof review?.rationale === 'string' ? review.rationale : ''
+              }];
+            })),
+            note: typeof incoming.note === 'string' ? incoming.note : ''
+          };
+        }
+      };
+      try { const saved = localStorage.getItem(stateKey); if (saved) apply(JSON.parse(saved)); } catch (error) {}
+
+      const status = (message, error = false) => { byId('status').textContent = message; byId('status').classList.toggle('error', error); };
+      const renderList = () => {
+        byId('unit-list').innerHTML = units.length ? units.map((unit, index) => {
+          const results = Object.values(state[unit.id].check_results);
+          const done = results.filter(value => value !== 'unverified').length;
+          const failed = results.filter(value => value === 'failed').length;
+          return `<button class="unit" type="button" data-unit="${index}" aria-pressed="${index === selected}"><span>${unit.order}. ${escapeHtml(unit.title)}</span><span class="unit-meta"><span class="${importanceClass(unit.importance)}">${escapeHtml(unit.importance)}</span><span class="${verificationClass(results)}">${done}/${unit.checks?.length || 0} checked${failed ? ` · ${failed} failed` : ''}</span><span class="${decisionClass(state[unit.id].decision)}">${labels[state[unit.id].decision]}</span></span></button>`;
+        }).join('') : '<span class="small muted">No review units</span>';
+      };
+
+      const highlight = (value, query) => {
+        if (!query) return escapeHtml(value);
+        const source = String(value); const lower = source.toLocaleLowerCase(); const needle = query.toLocaleLowerCase();
+        let cursor = 0; let output = '';
+        while (cursor < source.length) {
+          const found = lower.indexOf(needle, cursor);
+          if (found < 0) { output += escapeHtml(source.slice(cursor)); break; }
+          output += escapeHtml(source.slice(cursor, found)) + `<mark>${escapeHtml(source.slice(found, found + query.length))}</mark>`;
+          cursor = found + query.length;
+        }
+        return output;
+      };
+
+      const renderDiff = () => {
+        const unit = units[selected]; if (!unit) return;
+        const hasTextDiff = Boolean(unit.diff);
+        const full = hasTextDiff ? String(unit.diff).split('\n') : (unit.anchors || []).map(anchor => `${anchor.kind} · ${anchor.old_path || '∅'} → ${anchor.new_path || '∅'} · ${anchor.header || anchor.summary}`);
+        const query = byId('diff-search').value.trim();
+        let matches = 0;
+        byId('diff').innerHTML = full.map((line, index) => {
+          let kind = ''; if (line.startsWith('+') && !line.startsWith('+++')) kind = ' add'; if (line.startsWith('-') && !line.startsWith('---')) kind = ' del'; if (line.startsWith('@@')) kind = ' hunk';
+          if (query && line.toLocaleLowerCase().includes(query.toLocaleLowerCase())) matches += 1;
+          return `<span class="line${kind}">${highlight(line, query)}</span>${index < full.length - 1 ? '\n' : ''}`;
+        }).join('');
+        byId('evidence-title').textContent = hasTextDiff ? 'Exact diff' : 'Typed non-text evidence';
+        byId('diff-count').textContent = `${full.length} ${hasTextDiff ? 'lines' : 'entries'} · complete evidence${query ? ` · ${matches} matches` : ''}`;
+      };
+
+      const unitUnresolved = unit => {
+        const item = state[unit.id];
+        return ['pending', 'needs_evidence'].includes(item.decision) || Object.values(item.check_results).includes('unverified') || Object.values(item.finding_reviews).some(review => review.decision === 'pending' || (review.decision === 'dismissed' && !review.rationale.trim()));
+      };
+      const nextPending = () => { for (let offset = 1; offset <= units.length; offset += 1) { const index = (selected + offset) % units.length; if (unitUnresolved(units[index])) return index; } return -1; };
+      const select = index => { if (index < 0 || index >= units.length) return; selected = index; byId('diff-search').value = ''; render(); };
+
+      const render = () => {
+        if (!units.length) { byId('unit-list').textContent = 'No changed evidence has been assigned to a review unit.'; byId('detail')?.classList.add('hidden'); return; }
+        const unit = units[selected]; const unitState = state[unit.id]; const findings = (unit.finding_ids || []).map(findingById).filter(Boolean);
+        renderList(); renderDiff();
+        byId('unit-order').textContent = `Step ${unit.order}/${units.length}`; byId('unit-title').textContent = unit.title; byId('unit-question').textContent = unit.question;
+        byId('unit-conclusion-status').textContent = unit.conclusion?.status || 'unproven'; byId('unit-conclusion').textContent = unit.conclusion?.statement || 'No unit conclusion provided.';
+        byId('unit-before').textContent = unit.before; byId('unit-after').textContent = unit.after;
+        byId('unit-badges').innerHTML = `<span class="badge">${escapeHtml(unit.lane)}</span><span class="badge">${escapeHtml(unit.importance)}</span><span class="badge">${unit.changed_lines || 0} changed lines</span>`;
+        byId('unit-depends').textContent = (unit.depends_on || []).join(', ') || 'None'; byId('unit-evidence').innerHTML = evidenceRefs(unit.evidence_ids);
+        byId('unit-surface').textContent = [...(unit.files || []), ...(unit.symbols || [])].join(', ');
+        byId('unit-contract').textContent = unit.contract || 'Unknown';
+        byId('unit-background').textContent = unit.background || 'Unknown';
+        const entries = (unit.entry_points || []).join(', ') || 'Unknown'; const path = (unit.call_path || []).join(' → ') || 'Unknown';
+        byId('unit-call-path').textContent = `Entry: ${entries} · Path: ${path}`;
+        byId('unit-compatibility').textContent = [...(unit.consumers || []), ...(unit.compatibility || [])].join(' · ') || 'Unknown';
+        byId('unit-mechanism').innerHTML = (unit.mechanism_steps || []).map(step => `<li>${escapeHtml(step)}</li>`).join('');
+        byId('unit-invariants').innerHTML = (unit.invariants || []).map(item => `<li><strong>${escapeHtml(item.status)}</strong>: ${escapeHtml(item.statement)} ${evidenceRefs(item.evidence_refs)}</li>`).join('');
+        byId('unit-claims').innerHTML = (unit.claims || []).map(claim => `<tr><td class="claim-kind">${escapeHtml(claim.kind)}</td><td>${escapeHtml(claim.statement)}</td><td>${evidenceRefs(claim.evidence_refs)}</td><td>${escapeHtml(claim.confidence)}</td></tr>`).join('');
+        byId('unit-failures').innerHTML = (unit.failure_modes || []).map(item => `<li>${escapeHtml(item.trigger)} → ${escapeHtml(item.effect)} → ${escapeHtml(item.detection_or_mitigation)}</li>`).join('');
+        byId('unit-unknowns').innerHTML = (unit.unknowns || []).map(item => `<li>${escapeHtml(item)}</li>`).join('');
+        byId('checks').innerHTML = (unit.checks || []).map(check => `<div class="check"><div><strong>${escapeHtml(check.label)}</strong><br><span class="small muted">${escapeHtml(check.setup)} → ${escapeHtml(check.action)} → ${escapeHtml(check.expected)}</span></div><div class="check-options" role="radiogroup" aria-label="${escapeHtml(check.label)} result">${Object.entries(checkLabels).map(([value, label]) => `<label class="check-option" for="check-${escapeHtml(unit.id)}-${escapeHtml(check.id)}-${value}"><input id="check-${escapeHtml(unit.id)}-${escapeHtml(check.id)}-${value}" type="radio" name="check-${escapeHtml(unit.id)}-${escapeHtml(check.id)}" value="${value}" data-check="${escapeHtml(check.id)}" ${unitState.check_results[check.id] === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></div>`).join('');
+        const checkValues = Object.values(unitState.check_results); const handled = checkValues.filter(value => value !== 'unverified').length; const failed = checkValues.filter(value => value === 'failed').length;
+        byId('check-progress').textContent = `${handled}/${unit.checks?.length || 0}${failed ? ` · ${failed} failed` : ''}`;
+        byId('finding').innerHTML = findings.map(item => {
+          const review = unitState.finding_reviews[item.id];
+          return `<div class="finding-item"><div><strong>${escapeHtml(item.category)}</strong><br>${escapeHtml(item.description)}${evidenceRefs(item.evidence_ids)}</div><div class="decisions" role="group" aria-label="Finding decision"><button type="button" data-finding="${escapeHtml(item.id)}" data-finding-decision="pending" aria-pressed="${review.decision === 'pending'}">Pending</button><button type="button" data-finding="${escapeHtml(item.id)}" data-finding-decision="confirmed" aria-pressed="${review.decision === 'confirmed'}">Confirm</button><button type="button" data-finding="${escapeHtml(item.id)}" data-finding-decision="dismissed" aria-pressed="${review.decision === 'dismissed'}">Dismiss</button></div><label class="finding-rationale small">Reviewer rationale${review.decision === 'dismissed' ? ' · required to dismiss' : ''}<textarea rows="2" data-finding-rationale="${escapeHtml(item.id)}">${escapeHtml(review.rationale)}</textarea></label></div>`;
+        }).join('') || '<span class="small muted">No AI findings for this unit.</span>';
+        byId('review-note').value = unitState.note; byId('position').textContent = `${selected + 1}/${units.length}`;
+        byId('prev').disabled = selected === 0; byId('next').disabled = selected === units.length - 1; byId('next-unresolved').disabled = nextPending() < 0;
+        document.querySelectorAll('[data-decision]').forEach(button => { const active = button.dataset.decision === unitState.decision; button.setAttribute('aria-pressed', String(active)); });
+        const decided = units.filter(item => state[item.id].decision !== 'pending').length; const checks = units.flatMap(item => item.checks || []); const done = units.reduce((sum, item) => sum + Object.values(state[item.id].check_results).filter(value => value !== 'unverified').length, 0);
+        byId('decision-progress').textContent = `${decided}/${units.length} decided · ${done}/${checks.length} checks`;
+        const findingStates = Object.values(unitState.finding_reviews); const findingSummary = findingStates.length ? ` · ${findingStates.filter(value => value.decision !== 'pending').length}/${findingStates.length} findings reviewed` : '';
+        byId('action-feedback').textContent = `Current: ${labels[unitState.decision]} · ${handled}/${unit.checks?.length || 0} checks handled${failed ? ` · ${failed} failed` : ''}${findingSummary}`;
+      };
+
+      byId('scope').textContent = `${report.selector || ''} · ${(model.source_artifacts || []).length} source artifact(s) · ${String(report.diff_digest || '').slice(0, 12)} · ${report.drift || 'unknown'}`;
+      const renderOutcomeItems = items => (items || []).map(item => `<li>${escapeHtml(item.statement)}${evidenceRefs(item.refs)}</li>`).join('') || '<li>None</li>';
+      byId('outcome-confirmed').innerHTML = renderOutcomeItems(outcome.confirmed); byId('outcome-defects').innerHTML = renderOutcomeItems(outcome.defects); byId('outcome-unproven').innerHTML = renderOutcomeItems(outcome.unproven);
+      byId('outcome-recommendation').innerHTML = `${escapeHtml(outcome.recommendation?.disposition || 'expand_scope')} · ${escapeHtml(outcome.recommendation?.reason || 'No recommendation provided.')}${evidenceRefs(outcome.recommendation?.refs)}`;
+      byId('file-rows').innerHTML = (model.files || []).map(file => `<tr><td><code>${escapeHtml(file.path)}</code></td><td>${escapeHtml((file.unit_ids || []).join(', '))}</td><td>+${file.additions || 0}/-${file.deletions || 0}</td></tr>`).join('');
+      byId('finding-rows').innerHTML = (model.findings || []).map(finding => `<tr><td>${escapeHtml(finding.category)}</td><td><button type="button" data-finding-unit="${escapeHtml(finding.unit_id)}">${escapeHtml(finding.description)}</button></td></tr>`).join('');
+      const unitDescription = id => `${id} · ${units.find(unit => unit.id === id)?.title || 'Unknown review unit'}`;
+      const sourceDescription = id => { const source = (model.source_artifacts || []).find(item => item.id === id); return source ? `${id} · ${source.provenance} · ${source.selector}` : `${id} · Unknown source artifact`; };
+      byId('verification-rows').innerHTML = (model.verification || []).map(item => `<tr><td class="${item.status === 'failed' || item.status === 'missing' ? 'verify-failed' : item.status === 'verified' ? 'verify-complete' : 'verify-pending'}">${escapeHtml(item.status)}</td><td>${escapeHtml(item.behavior)}</td><td>${(item.unit_ids || []).map(id => escapeHtml(unitDescription(id))).join('<br>')}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">No verification records</td></tr>';
+      const coverage = model.coverage || {};
+      byId('coverage-summary').textContent = `${coverage.validated || 0} validated · ${coverage.redacted || 0} redacted · ${coverage.total || 0} total`;
+      byId('coverage-detail').textContent = `Assigned ${coverage.assigned_once || 0} · Presented ${coverage.presented_once || 0} · Missing ${coverage.missing || 0} · Duplicated ${coverage.duplicated || 0} · Unknown ${coverage.unknown || 0}`;
+      byId('ledger-rows').innerHTML = (model.evidence_ledger || []).map(item => `<tr><td>${evidenceRef(item.evidence_id)}<span class="small muted">${escapeHtml(item.kind)}</span></td><td>${escapeHtml(sourceDescription(item.source_artifact_id))}</td><td>${escapeHtml(item.unit_id ? unitDescription(item.unit_id) : 'Unassigned evidence')}</td><td>${escapeHtml(item.state)}</td></tr>`).join('');
+
+      const buildFinalMarkdown = () => {
+        const passedChecks = []; const failedChecks = []; const unrelatedChecks = []; const unverifiedChecks = []; const confirmedFindings = []; const dismissedFindings = []; const unsupportedDismissals = [];
+        for (const unit of units) {
+          for (const check of unit.checks || []) {
+            const result = state[unit.id].check_results[check.id];
+            if (result === 'passed') passedChecks.push(`${unit.id} / ${check.id}: ${check.label}`);
+            if (result === 'failed') failedChecks.push(`${unit.id} / ${check.id}: ${check.label}`);
+            if (result === 'not_applicable') unrelatedChecks.push(`${unit.id} / ${check.id}: ${check.label}`);
+            if (result === 'unverified') unverifiedChecks.push(`${unit.id} / ${check.id}: ${check.label}`);
+          }
+          for (const findingId of unit.finding_ids || []) {
+            const finding = findingById(findingId); const review = state[unit.id].finding_reviews[findingId];
+            if (finding && review.decision === 'confirmed') confirmedFindings.push(`${findingId}: ${finding.description}${review.rationale.trim() ? ` · Reviewer: ${review.rationale.trim()}` : ''}`);
+            if (finding && review.decision === 'dismissed' && review.rationale.trim()) dismissedFindings.push(`${findingId}: ${finding.description} · Rationale: ${review.rationale.trim()}`);
+            if (finding && review.decision === 'dismissed' && !review.rationale.trim()) unsupportedDismissals.push(`${findingId}: dismissal requires a rationale`);
+          }
+        }
+        const hasBlockingFinding = (model.findings || []).some(finding => finding.category === 'defect' && state[finding.unit_id]?.finding_reviews?.[finding.id]?.decision === 'confirmed');
+        const requested = units.some(unit => state[unit.id].decision === 'changes_requested');
+        const unresolved = units.some(unit => ['pending', 'needs_evidence'].includes(state[unit.id].decision)) || unverifiedChecks.length || unsupportedDismissals.length || (model.findings || []).some(finding => state[finding.unit_id]?.finding_reviews?.[finding.id]?.decision === 'pending');
+        const disposition = hasBlockingFinding || requested || failedChecks.length ? 'REQUEST CHANGES' : unresolved ? 'EVIDENCE INCOMPLETE' : 'ACCEPT';
+        const section = (title, values) => ['', `## ${title}`, ...(values.length ? values.map(value => `- ${value}`) : ['- None'])];
+        return [
+          '# Human code review conclusion', '',
+          `- Scope: ${report.selector || report.id}`, `- Frozen diff: ${report.diff_digest}`, `- Disposition: ${disposition}`,
+          `- Evidence coverage: ${coverage.validated || 0} validated + ${coverage.redacted || 0} redacted / ${coverage.total || 0} total; ${coverage.missing || 0} missing; ${coverage.duplicated || 0} duplicated; ${coverage.unknown || 0} unknown`,
+          `- Unit decisions: ${units.map(unit => `${unit.id}=${labels[state[unit.id].decision]}`).join('; ')}`,
+          ...section('Report verification evidence', (model.verification || []).map(item => `${item.id}: ${item.status} · ${item.behavior}`)),
+          ...section('Confirmed AI findings', confirmedFindings),
+          ...section('Dismissed AI findings', dismissedFindings),
+          ...section('Passed human checks', passedChecks),
+          ...section('Failed human checks', failedChecks),
+          ...section('Checks unrelated to this change', unrelatedChecks),
+          ...section('Unverified human checks', unverifiedChecks),
+          ...section('Incomplete finding decisions', unsupportedDismissals),
+          ...section('Reviewer notes', units.filter(unit => state[unit.id].note.trim()).map(unit => `${unit.id}: ${state[unit.id].note.trim()}`))
+        ].join('\n');
+      };
+
+      const showFinal = () => { byId('final-text').textContent = buildFinalMarkdown(); byId('final-report').classList.remove('hidden'); byId('final-report').scrollIntoView({ block: 'start' }); status('Human review conclusion generated from the current decisions.'); };
+
+      document.addEventListener('click', event => {
+        const unitButton = event.target.closest('[data-unit]'); if (unitButton) { select(Number(unitButton.dataset.unit)); return; }
+        const findingButton = event.target.closest('[data-finding-unit]'); if (findingButton) { const index = units.findIndex(unit => unit.id === findingButton.dataset.findingUnit); select(index); return; }
+        const decision = event.target.closest('[data-decision]'); if (decision && units[selected]) { state[units[selected].id].decision = decision.dataset.decision; save(); render(); status(`Step ${selected + 1} marked ${labels[decision.dataset.decision]}.`); }
+        const findingDecision = event.target.closest('[data-finding-decision]'); if (findingDecision && units[selected]) { const current = state[units[selected].id]; current.finding_reviews[findingDecision.dataset.finding].decision = findingDecision.dataset.findingDecision; save(); render(); status(`${findingDecision.dataset.finding} marked ${findingLabels[findingDecision.dataset.findingDecision]}.`); }
+      });
+      document.addEventListener('change', event => {
+        if (event.target.matches('input[type="radio"][data-check]')) { const current = state[units[selected].id]; const id = event.target.dataset.check; current.check_results[id] = event.target.value; save(); render(); status(`${id} marked ${checkLabels[event.target.value]}.`); }
+      });
+      byId('diff-search').addEventListener('input', renderDiff);
+      byId('review-note').addEventListener('input', event => { state[units[selected].id].note = event.target.value; save(); });
+      document.addEventListener('input', event => { if (event.target.matches('[data-finding-rationale]')) { state[units[selected].id].finding_reviews[event.target.dataset.findingRationale].rationale = event.target.value; save(); } });
+      byId('prev').addEventListener('click', () => select(selected - 1)); byId('next').addEventListener('click', () => select(selected + 1)); byId('next-unresolved').addEventListener('click', () => select(nextPending()));
+      byId('generate-final').addEventListener('click', showFinal);
+      byId('download-final').addEventListener('click', () => { const blob = new Blob([buildFinalMarkdown()], { type: 'text/markdown;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `mandiff-final-${report.id || 'review'}.md`; link.click(); URL.revokeObjectURL(url); status('Human review conclusion downloaded.'); });
+      byId('export-state').addEventListener('click', () => { const blob = new Blob([JSON.stringify(overlay(), null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `mandiff-review-${report.id || 'state'}.json`; link.click(); URL.revokeObjectURL(url); status('Review state exported.'); });
+      byId('import-state').addEventListener('change', event => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { apply(JSON.parse(String(reader.result))); save(); render(); status('Review state imported.'); } catch (error) { status(error.message, true); } event.target.value = ''; }; reader.readAsText(file); });
+      render();
+    })();
+  </script>
+</body>
+</html>
