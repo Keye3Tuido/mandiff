@@ -28,9 +28,11 @@ Choose the highest level the current agent can support:
 
 The level may change presentation, never evidence coverage or conclusions.
 
+When Python 3.9+ is available, use the bundled `compile_review.py`, `render_markdown.py`, and `render_review.py` unchanged. This is the portable implementation path, not a host adapter. If those scripts cannot run, fall back to text-only output; never create an ad hoc replacement during the review.
+
 ## Adapter boundary
 
-Allow an adapter to choose commands, temporary paths, UI directives, or artifact attachment mechanics. Keep these details out of the report model and core reasoning instructions.
+Allow an adapter to choose read-only acquisition commands, temporary paths, UI directives, or artifact attachment mechanics. It may not replace evidence compilation, validation, Markdown rendering, or HTML rendering with generated code. Keep adapter details out of the report model and core reasoning instructions.
 
 If a host-specific enhancement is used, make it optional and preserve a vendor-neutral fallback. Do not place host callbacks in portable HTML.
 

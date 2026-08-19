@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "report": {
+    "id": "compiled-sample-review",
+    "repository": "example/repository",
+    "selector": "abc123^..abc123",
+    "base": "0000000000000000000000000000000000000000",
+    "head": "1111111111111111111111111111111111111111",
+    "scope_exclusions": []
+  },
+  "sources": [
+    {
+      "diff_path": "pipeline.diff",
+      "provenance": "commit",
+      "selector": "abc123^..abc123",
+      "acquisition": "git diff --no-ext-diff --binary abc123^ abc123",
+      "captured_at": "2026-01-01T00:00:00Z",
+      "base": "0000000000000000000000000000000000000000",
+      "head": "1111111111111111111111111111111111111111",
+      "mutable": false
+    }
+  ]
+}

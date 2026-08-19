@@ -7,108 +7,163 @@
   <style>
     :root {
       color-scheme: light dark;
-      --bg: light-dark(#f6f7f9, #16191d);
+      --bg: light-dark(#f4f6f8, #15181c);
       --surface: light-dark(#ffffff, #20242a);
+      --surface-raised: light-dark(#ffffff, #252a31);
       --text: light-dark(#17202a, #edf1f5);
-      --muted: light-dark(#65717d, #a9b3bd);
+      --muted: light-dark(#64707c, #a9b3bd);
       --line: light-dark(#d7dde4, #3a424b);
-      --soft: light-dark(#eef1f4, #292f36);
-      --active: light-dark(#273a4d, #dce6ee);
+      --line-strong: light-dark(#b9c2cc, #515c67);
+      --soft: light-dark(#edf1f4, #292f36);
+      --active: light-dark(#26394b, #dce6ee);
       --active-text: light-dark(#ffffff, #17202a);
       --add: light-dark(#dff2e9, #183c31);
       --del: light-dark(#f8e2e2, #482527);
-      --danger: light-dark(#b42e38, #ff858c);
-      --focus: light-dark(#187d69, #5fd1b5);
+      --danger: light-dark(#ad2834, #ff858c);
+      --focus: light-dark(#087662, #68d4bb);
+      --code-bg: light-dark(#f7f8fa, #171a1f);
+      --gutter: light-dark(#e8ecf0, #242930);
     }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
-    button, input, select, textarea { font: inherit; }
-    button, input, select, textarea { color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
-    button { padding: 7px 10px; cursor: pointer; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, sans-serif; }
+    button, input, select, textarea { font: inherit; letter-spacing: 0; }
+    button, input, select, textarea { color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 5px; }
+    button { min-height: 34px; padding: 7px 11px; cursor: pointer; }
+    button:hover:not(:disabled) { border-color: var(--line-strong); }
     button[aria-pressed="true"] { background: var(--active); color: var(--active-text); border-color: var(--active); }
     button:disabled { opacity: .45; cursor: default; }
-    input, select, textarea { padding: 7px 8px; width: 100%; }
+    input, select, textarea { padding: 8px 9px; width: 100%; }
     textarea { resize: vertical; }
-    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     h1, h2, h3, p { margin: 0; }
-    h1 { font-size: 20px; font-weight: 500; }
-    h2 { font-size: 18px; font-weight: 500; }
-    h3 { font-size: 14px; font-weight: 500; }
-    .shell { max-width: 1320px; margin: 0 auto; padding: 22px; display: grid; gap: 18px; }
+    h1 { font-size: 20px; font-weight: 650; }
+    h2 { font-size: 20px; font-weight: 650; line-height: 1.3; }
+    h3 { font-size: 14px; font-weight: 650; }
+    summary { cursor: pointer; }
+    .shell { width: min(100%, 1880px); margin: 0 auto; padding: 0 clamp(16px, 2.4vw, 40px) 40px; display: grid; gap: 20px; }
     .topbar, .section-head, .detail-head, .nav-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-    .topbar { border-bottom: 1px solid var(--line); padding-bottom: 14px; }
-    .scope { color: var(--muted); }
+    .topbar { position: sticky; top: 0; z-index: 20; min-height: 70px; padding-block: 12px; background: color-mix(in srgb, var(--bg) 94%, transparent); border-bottom: 1px solid var(--line); backdrop-filter: blur(12px); }
+    .scope { max-width: min(72vw, 900px); color: var(--muted); overflow-wrap: anywhere; }
     .controls { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
-    .field { display: grid; gap: 4px; min-width: 150px; color: var(--muted); }
-    .outcome { display: grid; gap: 10px; }
-    .outcome-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; border-block: 1px solid var(--line); padding-block: 12px; }
-    .outcome-grid > div, .unit-conclusion { display: grid; gap: 5px; align-content: start; min-width: 0; }
+    .field { display: grid; gap: 5px; min-width: 180px; color: var(--muted); }
     .muted { color: var(--muted); }
     .small { font-size: 12px; }
-    .layout { display: grid; grid-template-columns: minmax(220px, .55fr) minmax(0, 1.45fr); gap: 20px; align-items: start; }
-    .layout > *, .review-grid > *, .table-wrap { min-width: 0; max-width: 100%; }
-    .rail { display: grid; gap: 16px; min-width: 0; }
-    .unit-list { display: grid; gap: 8px; }
-    .unit { width: 100%; text-align: left; display: grid; gap: 3px; }
+    .status { min-height: 1.4em; color: var(--muted); }
+    .status:empty { display: none; }
+    .status.error, .danger { color: var(--danger); }
+    .hidden { display: none !important; }
+
+    .outcome { display: grid; gap: 10px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+    .outcome-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); padding-top: 12px; }
+    .outcome-grid > div { min-width: 0; padding-inline: 14px; }
+    .outcome-grid > div:first-child { padding-left: 0; }
+    .outcome-grid > div:last-child { padding-right: 0; }
+    .outcome-grid > div + div { border-left: 1px solid var(--line); }
+    .outcome-grid > div, .unit-conclusion { display: grid; gap: 5px; align-content: start; min-width: 0; }
+    .compact-list { margin: 0; padding-left: 19px; }
+
+    .layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: clamp(20px, 2vw, 32px); align-items: start; }
+    .layout > *, .table-wrap, .diff-panel { min-width: 0; max-width: 100%; }
+    .rail { position: sticky; top: 90px; display: grid; gap: 12px; min-width: 0; max-height: calc(100vh - 110px); overflow: auto; padding-right: 4px; }
+    .rail-heading { display: grid; gap: 5px; padding-bottom: 4px; }
+    .unit-list { display: grid; gap: 6px; }
+    .unit { width: 100%; text-align: left; display: grid; gap: 4px; padding: 10px 11px; background: transparent; }
+    .unit[aria-pressed="true"] { box-shadow: inset 3px 0 0 var(--focus); }
     .unit-meta { font-size: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
-    .verify-complete, .decision-accepted { color: var(--focus); font-weight: 500; }
-    .level-critical { color: var(--danger); font-weight: 500; }
+    .verify-complete, .decision-accepted { color: var(--focus); font-weight: 600; }
+    .level-critical { color: var(--danger); font-weight: 650; }
     .level-normal { color: var(--focus); }
     .level-context, .verify-pending, .decision-pending { color: var(--muted); }
-    .verify-failed, .decision-changes { color: var(--danger); font-weight: 500; }
+    .verify-failed, .decision-changes { color: var(--danger); font-weight: 650; }
     .decision-evidence { color: var(--focus); }
-    .table-wrap { max-width: 100%; overflow-x: auto; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { text-align: left; padding: 7px; border-bottom: 1px solid var(--line); vertical-align: top; }
-    th { color: var(--muted); font-weight: 500; }
-    .detail { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 16px; min-width: 0; max-width: 100%; }
+
+    .detail { display: grid; gap: 18px; min-width: 0; max-width: 100%; padding-bottom: 20px; }
+    .detail-head { padding: 2px 0 8px; border-bottom: 1px solid var(--line); }
     .badges { display: flex; gap: 6px; flex-wrap: wrap; }
-    .badge { background: var(--soft); border-radius: 999px; padding: 3px 7px; font-size: 12px; }
-    .question { border-left: 3px solid var(--focus); padding-left: 11px; display: grid; gap: 3px; }
-    .before-after { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; border-block: 1px solid var(--line); padding-block: 12px; }
+    .badge { display: inline-flex; align-items: center; width: fit-content; min-height: 24px; background: var(--soft); border-radius: 999px; padding: 3px 8px; font-size: 12px; }
+    .question { border-left: 3px solid var(--focus); padding-left: 12px; display: grid; gap: 3px; }
+    .unit-conclusion { padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+    .before-after { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; border-block: 1px solid var(--line); padding-block: 14px; }
     .before-after > div { display: grid; gap: 4px; }
-    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
     .facts > div { min-width: 0; overflow-wrap: anywhere; }
     .analysis { border-block: 1px solid var(--line); padding-block: 12px; }
-    .analysis summary { cursor: pointer; }
-    .analysis-body { display: grid; gap: 12px; padding-top: 12px; }
-    .analysis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .analysis-body { display: grid; gap: 14px; padding-top: 14px; }
+    .analysis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
     .analysis-grid > div { min-width: 0; display: grid; gap: 5px; }
-    .compact-list { margin: 0; padding-left: 20px; }
     .claim-kind { white-space: nowrap; }
-    .review-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(230px, .65fr); gap: 18px; align-items: start; }
-    .diff-tools { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; margin-top: 8px; }
-    pre { margin: 8px 0 0; width: 100%; max-width: 100%; max-height: 560px; overflow: auto; background: var(--soft); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
-    .line { display: block; min-width: max-content; white-space: pre; }
+
+    .diff-panel { display: grid; gap: 9px; scroll-margin-top: 90px; }
+    .diff-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .diff-tools { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
+    .diff-tools .field { min-width: min(360px, 70vw); }
+    pre { margin: 0; width: 100%; max-width: 100%; overflow: auto; background: var(--code-bg); border: 1px solid var(--line-strong); border-radius: 5px; }
+    .diff-panel pre { min-height: 460px; max-height: min(72vh, 920px); padding: 10px 0; font-size: 13px; line-height: 1.55; }
+    .line { display: block; width: max-content; min-width: 100%; min-height: 1.55em; white-space: pre; padding-right: 18px; }
+    .line::before { content: attr(data-line); position: sticky; left: 0; display: inline-block; width: 4.6em; margin-right: 12px; padding-right: 10px; color: var(--muted); background: var(--gutter); border-right: 1px solid var(--line); text-align: right; user-select: none; }
     .line.add { background: var(--add); }
     .line.del { background: var(--del); }
-    .line.hunk { color: var(--muted); }
-    mark { background: color-mix(in srgb, var(--focus) 28%, transparent); color: inherit; }
-    .side { display: grid; gap: 12px; }
-    .checks { display: grid; gap: 8px; }
-    .check { display: grid; gap: 5px; }
-    .check-options { display: flex; gap: 10px; flex-wrap: wrap; }
-    .check-option { display: inline-flex; gap: 5px; align-items: center; }
-    .check-option input { width: auto; margin: 0; }
-    .finding { border-left: 3px solid var(--danger); padding-left: 10px; }
-    .finding-item { display: grid; gap: 7px; padding-block: 7px; }
+    .line.hunk, .line.meta { color: var(--muted); }
+    .line.hunk { border-block: 1px solid var(--line); }
+    .line.long-line { width: 100%; white-space: normal; padding-block: 5px; }
+    .long-line-preview, .long-line-full { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .long-line-action { min-height: 28px; margin-left: 10px; padding: 3px 8px; color: var(--focus); background: var(--surface); }
+    .line.long-line.expanded { max-height: 58vh; overflow: auto; align-content: start; }
+    mark { background: color-mix(in srgb, var(--focus) 32%, transparent); color: inherit; }
+
+    .review-panel { display: grid; gap: 16px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+    .review-body { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr); gap: 24px; align-items: start; }
+    .side { display: grid; gap: 14px; min-width: 0; }
+    .checks { display: grid; gap: 10px; }
+    .check { display: grid; gap: 7px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+    .check-options { display: flex; gap: 6px; flex-wrap: wrap; }
+    .check-option { position: relative; display: inline-flex; align-items: center; }
+    .check-option input { position: absolute; opacity: 0; pointer-events: none; }
+    .check-option span { display: inline-flex; align-items: center; min-height: 32px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; }
+    .check-option input:checked + span { color: var(--active-text); background: var(--active); border-color: var(--active); }
+    .check-option input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .finding { border-left: 3px solid var(--danger); padding-left: 11px; }
+    .finding-item { display: grid; gap: 8px; padding-block: 7px; }
     .finding-item + .finding-item { border-top: 1px solid var(--line); }
     .finding-rationale { display: grid; gap: 4px; }
     .evidence-ref { display: block; margin-block: 3px; overflow-wrap: anywhere; }
     .decisions { display: flex; gap: 7px; flex-wrap: wrap; }
-    .nav-row { border-top: 1px solid var(--line); padding-top: 14px; }
+    .nav-row { position: sticky; bottom: 0; z-index: 10; padding: 12px 0; background: color-mix(in srgb, var(--bg) 94%, transparent); border-top: 1px solid var(--line); backdrop-filter: blur(12px); }
     .final-report { border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 10px; }
-    .final-report pre { max-height: none; white-space: pre-wrap; }
-    .status { min-height: 1.4em; color: var(--muted); }
-    .status.error, .danger { color: var(--danger); }
-    .hidden { display: none !important; }
+    .final-report pre { max-height: none; padding: 14px; white-space: pre-wrap; }
+
+    .report-context { display: grid; gap: 16px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+    .report-context > summary { font-weight: 650; }
+    .report-context-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding-top: 4px; }
+    .report-context-grid > section { min-width: 0; display: grid; gap: 8px; align-content: start; }
+    .table-wrap { max-width: 100%; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+      .rail { position: static; max-height: none; overflow: visible; padding: 0; }
+      .unit-list { grid-auto-flow: column; grid-auto-columns: minmax(240px, 320px); overflow-x: auto; padding-bottom: 6px; }
+      .review-body { grid-template-columns: 1fr; }
+      .report-context-grid { grid-template-columns: 1fr; }
+    }
     @media (max-width: 760px) {
-      .shell { padding: 15px; }
-      .outcome-grid, .layout, .facts, .analysis-grid, .review-grid, .before-after { grid-template-columns: 1fr; }
+      .shell { padding-inline: 12px; gap: 16px; }
+      .topbar { position: static; }
+      .scope { max-width: 100%; }
+      .outcome-grid, .facts, .analysis-grid, .before-after { grid-template-columns: 1fr; }
+      .outcome-grid > div { padding: 10px 0; }
+      .outcome-grid > div + div { border-left: 0; border-top: 1px solid var(--line); }
       .before-after > span { text-align: center; transform: rotate(90deg); }
       .controls { align-items: stretch; }
-      .field { min-width: min(100%, 190px); }
+      .field, .diff-tools .field { min-width: min(100%, 260px); }
       .detail-head, .nav-row { align-items: flex-start; }
+      .diff-panel pre { min-height: 360px; max-height: 65vh; }
+      .line::before { width: 3.7em; margin-right: 8px; padding-right: 7px; }
+      .review-panel { padding: 13px; }
+      .nav-row { position: static; }
     }
   </style>
 </head>
@@ -134,11 +189,58 @@
 
     <div class="layout">
       <aside class="rail">
-        <section>
+        <section class="rail-heading">
           <div class="section-head"><h3>Review path</h3><span id="decision-progress" class="small muted"></span></div>
           <p class="small muted">Critical affects the overall disposition · Normal is a substantive local change · Context covers tests, docs, or mechanical wiring</p>
-          <nav id="unit-list" class="unit-list" aria-label="Review units"></nav>
         </section>
+        <nav id="unit-list" class="unit-list" aria-label="Review units"></nav>
+      </aside>
+
+      <article id="detail" class="detail" aria-live="polite">
+        <header class="detail-head"><div><div id="unit-order" class="small muted"></div><h2 id="unit-title"></h2></div><div id="unit-badges" class="badges"></div></header>
+        <div class="question"><span class="small muted">Review question</span><strong id="unit-question"></strong></div>
+        <div class="unit-conclusion"><span id="unit-conclusion-status" class="badge"></span><strong id="unit-conclusion"></strong></div>
+        <div class="before-after"><div><span class="small muted">Before</span><p id="unit-before"></p></div><span aria-hidden="true">→</span><div><span class="small muted">After</span><p id="unit-after"></p></div></div>
+        <section class="diff-panel" aria-labelledby="evidence-title">
+          <div class="diff-toolbar">
+            <div><h3 id="evidence-title">Exact diff</h3><span id="diff-count" class="small muted"></span></div>
+            <div class="diff-tools"><label class="field">Find in diff<input id="diff-search" type="search" placeholder="Symbol or text"></label></div>
+          </div>
+          <pre aria-label="Selected unit diff"><code id="diff"></code></pre>
+        </section>
+        <div class="facts"><div><span class="small muted">Depends on</span><div id="unit-depends"></div></div><div><span class="small muted">Evidence</span><div id="unit-evidence"></div></div><div><span class="small muted">Files and symbols</span><div id="unit-surface"></div></div></div>
+        <details class="analysis">
+          <summary>Evidence chain and context</summary>
+          <div class="analysis-body"><div><span class="small muted">Behavior contract</span><p id="unit-contract"></p></div><div><span class="small muted">Required background</span><p id="unit-background"></p></div>
+          <div class="analysis-grid">
+            <div><span class="small muted">Entry and direct path</span><div id="unit-call-path"></div></div>
+            <div><span class="small muted">Consumers and compatibility</span><div id="unit-compatibility"></div></div>
+            <div><span class="small muted">Mechanism</span><ol id="unit-mechanism" class="compact-list"></ol></div>
+            <div><span class="small muted">Invariants</span><ul id="unit-invariants" class="compact-list"></ul></div>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Kind</th><th>Claim</th><th>Evidence</th><th>Confidence</th></tr></thead><tbody id="unit-claims"></tbody></table></div>
+          <div class="analysis-grid"><div><span class="small muted">Concrete failure modes</span><ul id="unit-failures" class="compact-list"></ul></div><div><span class="small muted">Unknowns</span><ul id="unit-unknowns" class="compact-list"></ul></div></div></div>
+        </details>
+        <section class="review-panel" aria-labelledby="human-checks-title">
+          <div class="section-head"><h3 id="human-checks-title">Human review</h3><span id="check-progress" class="small muted"></span></div>
+          <div class="review-body">
+            <div class="side"><div id="checks" class="checks"></div><div id="finding" class="finding"></div></div>
+            <div class="side">
+              <label class="field">Reviewer note<textarea id="review-note" rows="6"></textarea></label>
+              <span class="small muted">Decision</span>
+              <div class="decisions" role="group" aria-label="Review decision"><button type="button" data-decision="pending">Pending</button><button type="button" data-decision="accepted">Accept</button><button type="button" data-decision="changes_requested">Request changes</button><button type="button" data-decision="needs_evidence">Need evidence</button></div>
+              <div id="action-feedback" class="status small" aria-live="polite"></div>
+            </div>
+          </div>
+        </section>
+        <footer class="nav-row"><button id="prev" type="button">Previous</button><span id="position" class="small muted"></span><div class="controls"><button id="generate-final" type="button">Generate human conclusion</button><button id="next-unresolved" type="button">Next unresolved</button><button id="next" type="button">Next</button></div></footer>
+        <section id="final-report" class="final-report hidden"><div class="section-head"><h3>Human review conclusion</h3><button id="download-final" type="button">Download Markdown</button></div><pre id="final-text"></pre></section>
+      </article>
+    </div>
+
+    <details class="report-context">
+      <summary>Report evidence map</summary>
+      <div class="report-context-grid">
         <section>
           <div class="section-head"><h3>Change surface</h3><span class="small muted">Files to units</span></div>
           <div class="table-wrap"><table><thead><tr><th>File</th><th>Units</th><th>Change</th></tr></thead><tbody id="file-rows"></tbody></table></div>
@@ -156,46 +258,8 @@
           <div id="coverage-detail" class="small"></div>
           <details class="analysis"><summary>Evidence ledger</summary><div class="table-wrap"><table><thead><tr><th>Evidence</th><th>Source</th><th>Unit</th><th>State</th></tr></thead><tbody id="ledger-rows"></tbody></table></div></details>
         </section>
-      </aside>
-
-      <article id="detail" class="detail" aria-live="polite">
-        <header class="detail-head"><div><div id="unit-order" class="small muted"></div><h2 id="unit-title"></h2></div><div id="unit-badges" class="badges"></div></header>
-        <div class="question"><span class="small muted">Review question</span><strong id="unit-question"></strong></div>
-        <div class="unit-conclusion"><span id="unit-conclusion-status" class="badge"></span><strong id="unit-conclusion"></strong></div>
-        <div class="before-after"><div><span class="small muted">Before</span><p id="unit-before"></p></div><span aria-hidden="true">→</span><div><span class="small muted">After</span><p id="unit-after"></p></div></div>
-        <div class="facts"><div><span class="small muted">Depends on</span><div id="unit-depends"></div></div><div><span class="small muted">Evidence</span><div id="unit-evidence"></div></div><div><span class="small muted">Files and symbols</span><div id="unit-surface"></div></div></div>
-        <details class="analysis">
-          <summary>Evidence chain and context</summary>
-          <div class="analysis-body"><div><span class="small muted">Behavior contract</span><p id="unit-contract"></p></div><div><span class="small muted">Required background</span><p id="unit-background"></p></div>
-          <div class="analysis-grid">
-            <div><span class="small muted">Entry and direct path</span><div id="unit-call-path"></div></div>
-            <div><span class="small muted">Consumers and compatibility</span><div id="unit-compatibility"></div></div>
-            <div><span class="small muted">Mechanism</span><ol id="unit-mechanism" class="compact-list"></ol></div>
-            <div><span class="small muted">Invariants</span><ul id="unit-invariants" class="compact-list"></ul></div>
-          </div>
-          <div class="table-wrap"><table><thead><tr><th>Kind</th><th>Claim</th><th>Evidence</th><th>Confidence</th></tr></thead><tbody id="unit-claims"></tbody></table></div>
-          <div class="analysis-grid"><div><span class="small muted">Concrete failure modes</span><ul id="unit-failures" class="compact-list"></ul></div><div><span class="small muted">Unknowns</span><ul id="unit-unknowns" class="compact-list"></ul></div></div></div>
-        </details>
-        <div class="review-grid">
-          <section>
-            <div class="section-head"><h3 id="evidence-title">Exact diff</h3><span id="diff-count" class="small muted"></span></div>
-            <div class="diff-tools"><label class="field">Find in diff<input id="diff-search" type="search" placeholder="Symbol or text"></label></div>
-            <pre aria-label="Selected unit diff"><code id="diff"></code></pre>
-          </section>
-          <aside class="side">
-            <div class="section-head"><h3>Human checks</h3><span id="check-progress" class="small muted"></span></div>
-            <div id="checks" class="checks"></div>
-            <div id="finding" class="finding"></div>
-            <label class="field">Reviewer note<textarea id="review-note" rows="5"></textarea></label>
-            <span class="small muted">Decision</span>
-            <div class="decisions" role="group" aria-label="Review decision"><button type="button" data-decision="pending">Pending</button><button type="button" data-decision="accepted">Accept</button><button type="button" data-decision="changes_requested">Request changes</button><button type="button" data-decision="needs_evidence">Need evidence</button></div>
-            <div id="action-feedback" class="status small" aria-live="polite"></div>
-          </aside>
-        </div>
-        <footer class="nav-row"><button id="prev" type="button">Previous</button><span id="position" class="small muted"></span><div class="controls"><button id="generate-final" type="button">Generate human conclusion</button><button id="next-unresolved" type="button">Next unresolved</button><button id="next" type="button">Next</button></div></footer>
-        <section id="final-report" class="final-report hidden"><div class="section-head"><h3>Human review conclusion</h3><button id="download-final" type="button">Download Markdown</button></div><pre id="final-text"></pre></section>
-      </article>
-    </div>
+      </div>
+    </details>
   </main>
 
   <script id="mandiff-data" type="application/json">{"__replace_with_mandiff_report__":true}</script>
@@ -208,6 +272,8 @@
       const outcome = model.outcome || { confirmed: [], defects: [], unproven: [], recommendation: {} };
       const stateKey = `mandiff:${report.diff_digest || 'template'}:review-state`;
       let selected = 0;
+      let renderedDiffKey = '';
+      let searchTimer;
       let state = Object.fromEntries(units.map(unit => [unit.id, {
         decision: 'pending',
         check_results: Object.fromEntries((unit.checks || []).map(check => [check.id, 'unverified'])),
@@ -296,19 +362,45 @@
         return output;
       };
 
+      const LONG_LINE_LIMIT = 2000;
+      const longLinePreview = (line, query) => {
+        const needle = query.toLocaleLowerCase();
+        const match = needle ? line.toLocaleLowerCase().indexOf(needle) : -1;
+        if (match >= 0) {
+          const start = Math.max(0, match - 140);
+          const end = Math.min(line.length, match + query.length + 220);
+          return `${start ? '…' : ''}${line.slice(start, end)}${end < line.length ? '…' : ''}`;
+        }
+        const head = line.slice(0, 280);
+        const tail = line.slice(-100);
+        return `${head} … ${tail}`;
+      };
+
       const renderDiff = () => {
         const unit = units[selected]; if (!unit) return;
+        const query = byId('diff-search').value.trim();
+        const renderKey = `${unit.id}\u0000${query}`;
+        if (renderKey === renderedDiffKey) return;
+        renderedDiffKey = renderKey;
         const hasTextDiff = Boolean(unit.diff);
         const full = hasTextDiff ? String(unit.diff).split('\n') : (unit.anchors || []).map(anchor => `${anchor.kind} · ${anchor.old_path || '∅'} → ${anchor.new_path || '∅'} · ${anchor.header || anchor.summary}`);
-        const query = byId('diff-search').value.trim();
-        let matches = 0;
+        let matches = 0; let longLines = 0;
         byId('diff').innerHTML = full.map((line, index) => {
-          let kind = ''; if (line.startsWith('+') && !line.startsWith('+++')) kind = ' add'; if (line.startsWith('-') && !line.startsWith('---')) kind = ' del'; if (line.startsWith('@@')) kind = ' hunk';
+          let kind = '';
+          if (line.startsWith('+') && !line.startsWith('+++')) kind = ' add';
+          if (line.startsWith('-') && !line.startsWith('---')) kind = ' del';
+          if (line.startsWith('@@')) kind = ' hunk';
+          if (line.startsWith('diff --git') || line.startsWith('index ') || line.startsWith('---') || line.startsWith('+++')) kind = ' meta';
           if (query && line.toLocaleLowerCase().includes(query.toLocaleLowerCase())) matches += 1;
-          return `<span class="line${kind}">${highlight(line, query)}</span>${index < full.length - 1 ? '\n' : ''}`;
+          if (line.length > LONG_LINE_LIMIT) {
+            longLines += 1;
+            const preview = longLinePreview(line, query);
+            return `<span class="line long-line${kind}" data-line="${index + 1}"><span class="long-line-preview">${highlight(preview, query)}</span><button class="long-line-action" type="button" data-expand-line="${index}">Show full line · ${line.length.toLocaleString()} chars</button></span>`;
+          }
+          return `<span class="line${kind}" data-line="${index + 1}">${highlight(line, query)}</span>`;
         }).join('');
         byId('evidence-title').textContent = hasTextDiff ? 'Exact diff' : 'Typed non-text evidence';
-        byId('diff-count').textContent = `${full.length} ${hasTextDiff ? 'lines' : 'entries'} · complete evidence${query ? ` · ${matches} matches` : ''}`;
+        byId('diff-count').textContent = `${full.length} ${hasTextDiff ? 'lines' : 'entries'} · complete evidence${longLines ? ` · ${longLines} long ${longLines === 1 ? 'line' : 'lines'} collapsed` : ''}${query ? ` · ${matches} matches` : ''}`;
       };
 
       const unitUnresolved = unit => {
@@ -410,6 +502,19 @@
       const showFinal = () => { byId('final-text').textContent = buildFinalMarkdown(); byId('final-report').classList.remove('hidden'); byId('final-report').scrollIntoView({ block: 'start' }); status('Human review conclusion generated from the current decisions.'); };
 
       document.addEventListener('click', event => {
+        const expandLine = event.target.closest('[data-expand-line]');
+        if (expandLine && units[selected]) {
+          const lines = units[selected].diff ? String(units[selected].diff).split('\n') : [];
+          const line = lines[Number(expandLine.dataset.expandLine)];
+          const container = expandLine.closest('.line');
+          if (container && line !== undefined) {
+            const content = document.createElement('span');
+            content.className = 'long-line-full'; content.textContent = line;
+            container.replaceChildren(content); container.classList.add('expanded');
+            status(`Expanded line ${Number(expandLine.dataset.expandLine) + 1}.`);
+          }
+          return;
+        }
         const unitButton = event.target.closest('[data-unit]'); if (unitButton) { select(Number(unitButton.dataset.unit)); return; }
         const findingButton = event.target.closest('[data-finding-unit]'); if (findingButton) { const index = units.findIndex(unit => unit.id === findingButton.dataset.findingUnit); select(index); return; }
         const decision = event.target.closest('[data-decision]'); if (decision && units[selected]) { state[units[selected].id].decision = decision.dataset.decision; save(); render(); status(`Step ${selected + 1} marked ${labels[decision.dataset.decision]}.`); }
@@ -418,7 +523,7 @@
       document.addEventListener('change', event => {
         if (event.target.matches('input[type="radio"][data-check]')) { const current = state[units[selected].id]; const id = event.target.dataset.check; current.check_results[id] = event.target.value; save(); render(); status(`${id} marked ${checkLabels[event.target.value]}.`); }
       });
-      byId('diff-search').addEventListener('input', renderDiff);
+      byId('diff-search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderDiff, 180); });
       byId('review-note').addEventListener('input', event => { state[units[selected].id].note = event.target.value; save(); });
       document.addEventListener('input', event => { if (event.target.matches('[data-finding-rationale]')) { state[units[selected].id].finding_reviews[event.target.dataset.findingRationale].rationale = event.target.value; save(); } });
       byId('prev').addEventListener('click', () => select(selected - 1)); byId('next').addEventListener('click', () => select(selected + 1)); byId('next-unresolved').addEventListener('click', () => select(nextPending()));

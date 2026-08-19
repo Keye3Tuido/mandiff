@@ -1,0 +1,6 @@
+diff --git a/src/example.txt b/src/example.txt
+--- a/src/example.txt
++++ b/src/example.txt
+@@ -1 +1 @@
+-old
++new

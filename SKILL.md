@@ -24,6 +24,8 @@ Transform one explicitly selected change set into an ordered, visual-first tutor
 13. Keep the core output agent-neutral. Never require a vendor-specific API, global object, MCP server, UI directive, or proprietary message format.
 14. Produce decision-grade conclusions, not only preparation material. Lead with what is confirmed, what is defective, what remains unproven, and the recommended review disposition.
 15. Never show a bare evidence ID in human-facing output. Pair every ID with its source location and a one-line explanation; IDs are stable cross-references, not explanations.
+16. Use the bundled compiler and renderers as immutable tooling. Never author, copy, or repair a one-off Python, JavaScript, shell, or encoding-conversion script to build a review.
+17. Write only declarative UTF-8 JSON inputs and reviewer-facing output artifacts. Never hand-author hashes, byte offsets, anchors, exact-diff segments, ledgers, coverage, or duplicated Markdown/HTML representations.
 
 ## Resolve and freeze the review target
 
@@ -50,7 +52,7 @@ For a submodule pointer change, explain the pointer update only. Inspect the nes
 
 ## Build the evidence inventory
 
-Read [references/evidence-protocol.md](references/evidence-protocol.md) and follow its snapshot, anchor, lane, coverage, and drift rules.
+Read [references/evidence-protocol.md](references/evidence-protocol.md) and [references/compiler-workflow.md](references/compiler-workflow.md). Follow the compiler workflow for snapshot, anchor, lane, coverage, and rendering mechanics.
 
 Collect, without mutation:
 
@@ -61,7 +63,7 @@ Collect, without mutation:
 
 Do not accept a commit message, PR description, or conversation summary as proof of behavior. Use them only as orientation and verify claims against the frozen diff and surrounding code.
 
-Assign stable evidence IDs:
+Run `scripts/compile_review.py inventory` immediately after freezing the source artifacts. Let it assign stable evidence IDs:
 
 - Files: `F01`, `F02`, ... in original diff order.
 - Hunks: `F01-H01`, `F01-H02`, ... in original hunk order.
@@ -69,9 +71,9 @@ Assign stable evidence IDs:
 - Context snapshots: `C01`, `C02`, ... for unchanged definitions, direct callers or callees, tests, schemas, configuration, or documentation.
 - Reported intent: `M01`, `M02`, ... for commit or pull-request text, and `RQ01`, `RQ02`, ... for explicit requirements or issue statements.
 
-For each entry, retain an anchor containing its source artifact, provenance, old and new paths, section kind, ordinal, exact hunk header or entry type, old and new line spans when available, byte start and length inside the decoded display artifact, a concise human label, a one-line explanation, and both original and display fingerprints. They are equal unless that evidence is redacted. Recompute the display fingerprint from the byte span. IDs are report-local labels; the commitments detect drift, tampering, or accidental rebinding. Render the ID together with that label and explanation everywhere a human sees it.
+Do not calculate or transcribe these IDs, byte positions, line spans, fingerprints, file statistics, or source commitments yourself. Read the generated compact inventory, analyze the frozen diff, and supply only a concise human label and one-line explanation for each evidence item in the declarative analysis. The compiler binds those explanations to its mechanical anchors.
 
-Create a canonical `evidence_ledger` entry for every changed evidence ID containing its source artifact, fingerprint, logical unit, review lane, importance, and state. Advance evidence only through `discovered -> assigned -> presented -> validated`; use `redacted` only for the explicit secret-redaction exception. Never call `presented` or `validated` evidence human-reviewed.
+Let `scripts/compile_review.py compile` create the canonical evidence ledger, exact unit diffs, ownership links, statistics, and coverage counters. It must reject missing, duplicated, mixed-kind, drifted, or manually supplied derived evidence. Never call `presented` or `validated` evidence human-reviewed.
 
 Context evidence does not count as changed-hunk coverage and must never own a diff hunk. Freeze each context source to the same immutable base or head snapshot, record its revision, path, symbol or line span, and fingerprint, and identify whether it describes the old state or the new state. Use only direct context that changes the reviewer’s ability to decide:
 
@@ -85,7 +87,7 @@ Do not collect broad architecture tours. Commit messages, pull-request descripti
 
 ## Build the portable review model
 
-Read [references/agent-portability.md](references/agent-portability.md) and [references/review-data-model.md](references/review-data-model.md). Construct the canonical review model before rendering Markdown or HTML.
+Read [references/agent-portability.md](references/agent-portability.md) and [references/review-data-model.md](references/review-data-model.md). Write one declarative `analysis.json` from the semantic review, then compile it into the canonical model before rendering Markdown or HTML.
 
 When artifacts can be written outside the reviewed repository, emit:
 
@@ -94,7 +96,16 @@ When artifacts can be written outside the reviewed repository, emit:
 - `review.md`: portable evidence-complete audit record;
 - `review.html`: self-contained visual explorer with the report data embedded.
 
-Prefer `assets/review-explorer-template.html` for consistent portable rendering. When Python is available, run `scripts/validate_review.py <review.json>` and then `scripts/render_review.py <review.json> <review.html>`; the renderer repeats validation before writing. Otherwise validate the schema and all semantic constraints in `references/review-data-model.md`, then replace the template's single embedded-data placeholder with the canonical report JSON using an equivalent safe structured operation.
+Use the complete bundled pipeline; do not reproduce any stage in agent-authored code:
+
+```sh
+python3 scripts/compile_review.py inventory <source-manifest.json> <inventory.json>
+python3 scripts/compile_review.py compile <inventory.json> <analysis.json> <review.json>
+python3 scripts/render_markdown.py <review.json> <review.md>
+python3 scripts/render_review.py <review.json> <review.html>
+```
+
+The compiler validates `review.json`; both renderers validate it again. If Python or artifact output is unavailable, use the text-only fallback. Do not recreate the compiler or renderer in another language during a review.
 
 When artifact output is unavailable, keep the same model internally and render the best available chat representation. The evidence IDs, unit order, findings, verification states, and coverage counts must agree across every representation.
 
@@ -250,15 +261,18 @@ Before finishing:
 9. Verify portable HTML works without network access or vendor-specific globals, and that exported review state is bound to the frozen diff digest.
 10. Verify every structured claim references existing evidence, every check references existing claims, and every finding references a claim or failure mode.
 11. Run the completeness and precision gates; report any failed field as missing context instead of silently weakening the analysis.
-12. Run `scripts/validate_review.py` when Python is available. Do not render or deliver a report with schema, cross-reference, aggregate digest, summary, or evidence-ledger errors.
+12. Require `scripts/compile_review.py compile` and both renderers to finish successfully. Do not render or deliver a report with schema, cross-reference, aggregate digest, summary, or evidence-ledger errors.
 
 ## Validate this skill installation
 
 The bundled scripts require Python 3.9 or newer and only the standard library. From the ManDiff skill directory (or using absolute paths), run this generic fixture, which contains no repository-specific information:
 
 ```sh
+python3 scripts/compile_review.py inventory tests/fixtures/pipeline-manifest.json /tmp/mandiff-inventory.json
+python3 scripts/compile_review.py compile /tmp/mandiff-inventory.json tests/fixtures/pipeline-analysis.json /tmp/mandiff-review.json
+python3 scripts/render_markdown.py /tmp/mandiff-review.json /tmp/mandiff-review.md
+python3 scripts/render_review.py /tmp/mandiff-review.json /tmp/mandiff-review.html
 python3 scripts/validate_review.py tests/fixtures/valid-review.json
-python3 scripts/render_review.py tests/fixtures/valid-review.json /tmp/mandiff-review.html
 python3 -m unittest discover -s tests -v
 ```
 

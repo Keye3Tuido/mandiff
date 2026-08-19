@@ -4,6 +4,8 @@ Use one canonical model for Markdown, HTML, and reviewer-state export. Field nam
 
 When JSON Schema tooling is available, validate the immutable report against `../assets/review-model.schema.json`.
 
+During authoring, use the two declarative compiler inputs described in `compiler-workflow.md`: a source manifest and semantic `analysis.json`. Do not hand-author the canonical report. `compile_review.py` derives source embeddings, file records, exact diff segments, anchors, ownership links, ledger, summary, and coverage before validating the canonical model below.
+
 ## Evidence classes
 
 Keep provenance explicit. A source supports only the kind of conclusion it can establish:
@@ -91,7 +93,7 @@ Every `critical` or `normal` main-path unit must contain the following fields. U
 - State delta: symmetrical `before` and `after` statements.
 - Execution: `entry_points`, `call_path`, and 3-7 `mechanism_steps`.
 - Constraints: `invariants`, `consumers`, and `compatibility`.
-- Evidence: `depends_on`, `files`, `symbols`, `evidence_ids`, exact `diff`, ordered `diff_segments`, and stable `anchors`. Segments locate bytes but do not define completeness: derive the canonical display independently as each source file's exact metadata followed by the unit's complete owned hunks, then require both the segments and `diff` to reproduce it.
+- Evidence: author `depends_on`, `symbols`, and the declarative evidence `id`/`label`/`summary`; let the compiler derive `files`, `evidence_ids`, exact `diff`, ordered `diff_segments`, and stable `anchors`. Segments locate bytes but do not define completeness: the compiler derives the canonical display independently as each source file's exact metadata followed by the unit's complete owned hunks, then requires both the segments and `diff` to reproduce it.
 - Reasoning: atomic `claims`, concrete `failure_modes`, and explicit `unknowns`.
 - Verification: structured `checks`, linked `finding_ids`, and linked `verification_ids`.
 

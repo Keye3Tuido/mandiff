@@ -1,0 +1,160 @@
+{
+  "schema_version": "1.0",
+  "outcome": {
+    "confirmed": [
+      {
+        "statement": "The selected hunk replaces the stored value.",
+        "refs": ["U01", "CL01"]
+      }
+    ],
+    "defects": [],
+    "unproven": [
+      {
+        "statement": "The selected evidence does not execute the consumer.",
+        "refs": ["U01", "V01"]
+      }
+    ],
+    "recommendation": {
+      "disposition": "expand_scope",
+      "reason": "Run the consumer check before acceptance.",
+      "refs": ["U01", "V01"]
+    }
+  },
+  "context_sources": [
+    {
+      "id": "C01",
+      "kind": "caller",
+      "snapshot": "head",
+      "revision": "1111111111111111111111111111111111111111",
+      "path": "src/reader.txt",
+      "locator": "read_value",
+      "summary": "Reads the stored value at startup.",
+      "excerpt": "Reads the value at startup."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "RQ01",
+      "kind": "requirement",
+      "statement": "Use the new value."
+    }
+  ],
+  "units": [
+    {
+      "id": "U01",
+      "order": 1,
+      "title": "更新存储值",
+      "lane": "main",
+      "importance": "normal",
+      "question": "Does the reader receive the new value?",
+      "contract": "At startup, read_value returns the literal stored in src/example.txt.",
+      "conclusion": {
+        "status": "partially_confirmed",
+        "statement": "The literal changes, but downstream behavior remains unverified.",
+        "evidence_refs": ["F01-H01", "C01"]
+      },
+      "before": "The stored literal is old.",
+      "after": "The stored literal is new.",
+      "background": "The value is read once at startup.",
+      "entry_points": ["read_value"],
+      "call_path": ["startup", "read_value", "src/example.txt"],
+      "mechanism_steps": [
+        "Replace the stored literal.",
+        "The existing reader loads the same file at startup.",
+        "The returned value changes from old to new."
+      ],
+      "invariants": [
+        {
+          "status": "preserved",
+          "statement": "The file remains a one-line value.",
+          "evidence_refs": ["F01-H01"]
+        }
+      ],
+      "consumers": ["startup"],
+      "compatibility": ["No format change; only the literal changes."],
+      "claims": [
+        {
+          "id": "CL01",
+          "statement": "The selected hunk replaces old with new.",
+          "kind": "observed",
+          "evidence_refs": ["F01-H01"],
+          "confidence": "high"
+        },
+        {
+          "id": "CL02",
+          "statement": "read_value reads this file at startup.",
+          "kind": "contextual",
+          "evidence_refs": ["C01"],
+          "confidence": "high"
+        }
+      ],
+      "failure_modes": [
+        {
+          "id": "FM01",
+          "trigger": "A consumer still expects old",
+          "effect": "Startup behavior differs from its expectation",
+          "detection_or_mitigation": "Run the startup contract check",
+          "evidence_refs": ["F01-H01", "C01"],
+          "claim_ids": ["CL01", "CL02"]
+        }
+      ],
+      "unknowns": ["No downstream integration test was included in the selected change."],
+      "completeness": {
+        "contract": "complete",
+        "entry_points": "complete",
+        "call_path": "complete",
+        "mechanism": "complete",
+        "invariants": "complete",
+        "consumers": "complete",
+        "compatibility": "complete",
+        "failure_modes": "complete",
+        "checks": "complete",
+        "unknowns": "complete"
+      },
+      "depends_on": [],
+      "symbols": ["example_value"],
+      "evidence": [
+        {
+          "id": "F01-H01",
+          "label": "src/example.txt · value replacement",
+          "summary": "Replaces the stored literal from old to new."
+        }
+      ],
+      "checks": [
+        {
+          "id": "C1",
+          "label": "Exercise the startup contract",
+          "setup": "Install the changed file",
+          "action": "Run startup and observe read_value",
+          "expected": "The returned value is new",
+          "claim_ids": ["CL01", "CL02"]
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "R01",
+      "category": "risk",
+      "severity": "low",
+      "unit_id": "U01",
+      "evidence_ids": ["F01-H01", "C01"],
+      "claim_ids": ["CL01", "CL02"],
+      "failure_mode_ids": ["FM01"],
+      "description": "A consumer expectation requires a runtime check."
+    }
+  ],
+  "verification": [
+    {
+      "id": "V01",
+      "behavior": "The startup reader returns new.",
+      "status": "not_run",
+      "existing_evidence": "Static source only.",
+      "setup": "Install the changed file",
+      "action": "Run startup",
+      "expected": "read_value returns new",
+      "claim_ids": ["CL01", "CL02"],
+      "unit_ids": ["U01"]
+    }
+  ]
+}

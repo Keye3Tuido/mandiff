@@ -207,6 +207,21 @@ class ReviewValidationTests(unittest.TestCase):
             self.assertIn('"schema_version":"1.3"', rendered)
             self.assertNotIn('{"__replace_with_mandiff_report__":true}', rendered)
 
+    def test_review_template_keeps_diff_as_the_primary_workspace(self):
+        template = (ROOT / "assets" / "review-explorer-template.html").read_text(encoding="utf-8")
+        self.assertIn("grid-template-columns: 280px minmax(0, 1fr)", template)
+        self.assertIn('class="diff-panel"', template)
+        self.assertIn('class="review-panel"', template)
+        self.assertLess(template.index('class="diff-panel"'), template.index('class="review-panel"'))
+        self.assertIn("max-height: min(72vh, 920px)", template)
+        self.assertIn('data-line="${index + 1}"', template)
+        self.assertIn("const LONG_LINE_LIMIT = 2000", template)
+        self.assertIn('data-expand-line="${index}"', template)
+        self.assertIn("if (renderKey === renderedDiffKey) return", template)
+        self.assertIn('<summary>Report evidence map</summary>', template)
+        self.assertNotIn("max-width: 1320px", template)
+        self.assertNotIn('class="review-grid"', template)
+
 
 if __name__ == "__main__":
     unittest.main()
