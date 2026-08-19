@@ -23,6 +23,13 @@
       --focus: light-dark(#087662, #68d4bb);
       --code-bg: light-dark(#f7f8fa, #171a1f);
       --gutter: light-dark(#e8ecf0, #242930);
+      --syntax-keyword: light-dark(#7b2cbf, #d2a8ff);
+      --syntax-string: light-dark(#116329, #7ee787);
+      --syntax-number: light-dark(#a34600, #ffa657);
+      --syntax-comment: light-dark(#6e7781, #8b949e);
+      --syntax-function: light-dark(#0969da, #79c0ff);
+      --syntax-property: light-dark(#953800, #ffab70);
+      --syntax-type: light-dark(#006d77, #76e3ea);
     }
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
@@ -106,6 +113,20 @@
     .line.del { background: var(--del); }
     .line.hunk, .line.meta { color: var(--muted); }
     .line.hunk { border-block: 1px solid var(--line); }
+    .diff-newline { font-size: 0; line-height: 0; }
+    .diff-prefix { color: var(--muted); user-select: none; }
+    .tok-keyword { color: var(--syntax-keyword); font-weight: 600; }
+    .tok-string { color: var(--syntax-string); }
+    .tok-number, .tok-literal { color: var(--syntax-number); }
+    .tok-comment { color: var(--syntax-comment); font-style: italic; }
+    .tok-function { color: var(--syntax-function); }
+    .tok-property { color: var(--syntax-property); }
+    .tok-type { color: var(--syntax-type); }
+    .inline-code, .code-chip { font-size: .94em; background: color-mix(in srgb, var(--soft) 84%, transparent); border: 1px solid var(--line); border-radius: 4px; }
+    .inline-code { padding: 1px 4px; }
+    .code-list { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
+    .code-chip { display: inline-flex; max-width: 100%; padding: 2px 6px; overflow-wrap: anywhere; white-space: normal; }
+    .code-group + .code-group { margin-top: 7px; }
     .line.long-line { width: 100%; white-space: normal; padding-block: 5px; }
     .long-line-preview, .long-line-full { white-space: pre-wrap; overflow-wrap: anywhere; }
     .long-line-action { min-height: 28px; margin-left: 10px; padding: 3px 8px; color: var(--focus); background: var(--surface); }
@@ -362,6 +383,127 @@
         return output;
       };
 
+      const EXTENSION_LANGUAGES = {
+        c: 'c', h: 'c', cc: 'cpp', cpp: 'cpp', cxx: 'cpp', hh: 'cpp', hpp: 'cpp', m: 'cpp', mm: 'cpp',
+        cs: 'csharp', java: 'java', kt: 'kotlin', kts: 'kotlin', swift: 'swift', go: 'go', rs: 'rust',
+        js: 'javascript', jsx: 'javascript', mjs: 'javascript', cjs: 'javascript', ts: 'typescript', tsx: 'typescript',
+        py: 'python', rb: 'ruby', php: 'php', lua: 'lua', dart: 'dart', sh: 'shell', bash: 'shell', zsh: 'shell', fish: 'shell',
+        json: 'json', jsonc: 'json', yaml: 'yaml', yml: 'yaml', toml: 'toml', xml: 'markup', html: 'markup', htm: 'markup',
+        vue: 'markup', svelte: 'markup', css: 'css', scss: 'css', sass: 'css', less: 'css', sql: 'sql', md: 'markdown'
+      };
+      const LANGUAGE_NAMES = {
+        c: 'C', cpp: 'C++', csharp: 'C#', java: 'Java', kotlin: 'Kotlin', swift: 'Swift', go: 'Go', rust: 'Rust',
+        javascript: 'JavaScript', typescript: 'TypeScript', python: 'Python', ruby: 'Ruby', php: 'PHP', lua: 'Lua', dart: 'Dart', shell: 'Shell',
+        json: 'JSON', yaml: 'YAML', toml: 'TOML', markup: 'HTML/XML', css: 'CSS', sql: 'SQL', markdown: 'Markdown'
+      };
+      const LANGUAGE_FAMILIES = {
+        c: 'c', cpp: 'c', csharp: 'c', java: 'c', kotlin: 'c', swift: 'c', go: 'c', rust: 'c', dart: 'c',
+        javascript: 'javascript', typescript: 'javascript', python: 'python', ruby: 'ruby', php: 'php', lua: 'lua', shell: 'shell',
+        json: 'json', yaml: 'yaml', toml: 'toml', markup: 'markup', css: 'css', sql: 'sql', markdown: 'markdown'
+      };
+      const KEYWORD_GROUPS = {
+        c: 'alignas alignof asm auto bool break case catch char class const constexpr continue default delete do double else enum explicit export extern false float for friend goto if inline int interface long namespace new noexcept nullptr operator override private protected public register return short signed sizeof static struct switch template this throw true try typedef typename union unsigned using virtual void volatile while',
+        javascript: 'as async await break case catch class const continue debugger default delete do else export extends false finally for from function get if implements import in instanceof interface let new null of package private protected public return set static super switch this throw true try typeof undefined var void while with yield',
+        python: 'and as assert async await break class continue def del elif else except false finally for from global if import in is lambda none nonlocal not or pass raise return true try while with yield',
+        ruby: 'alias and begin break case class def defined do else elsif end ensure false for if in module next nil not or redo rescue retry return self super then true undef unless until when while yield',
+        php: 'abstract and array as break callable case catch class clone const continue declare default die do echo else elseif empty enddeclare endfor endforeach endif endswitch endwhile eval exit extends false final finally fn for foreach function global goto if implements include include_once instanceof insteadof interface isset list match namespace new null or print private protected public readonly require require_once return static switch throw trait true try unset use var while xor yield',
+        lua: 'and break do else elseif end false for function goto if in local nil not or repeat return then true until while',
+        shell: 'case do done elif else esac export fi for function if in local readonly return set shift then time trap until while',
+        json: 'false null true',
+        yaml: 'false null true yes no on off',
+        toml: 'false true',
+        sql: 'all alter and any as asc begin between by case check column commit constraint create database default delete desc distinct drop else end exists false foreign from full grant group having in index inner insert into is join key left like limit not null on or order outer primary references right rollback select set table then true union unique update values view when where with',
+        markdown: '', markup: '', css: ''
+      };
+      const KEYWORDS = Object.fromEntries(Object.entries(KEYWORD_GROUPS).map(([language, words]) => [language, new Set(words.split(' ').filter(Boolean))]));
+      const LINE_COMMENTS = { c: '//', javascript: '//', python: '#', ruby: '#', php: '//', lua: '--', shell: '#', yaml: '#', toml: '#', sql: '--' };
+      const BLOCK_COMMENTS = { c: ['/*', '*/'], javascript: ['/*', '*/'], php: ['/*', '*/'], css: ['/*', '*/'], markup: ['<!--', '-->'] };
+
+      const languageForPath = value => {
+        const path = String(value || '').trim().replace(/^"|"$/g, '').replace(/^a\//, '').replace(/^b\//, '');
+        if (!path || path === '/dev/null') return null;
+        const name = path.split('/').pop().toLocaleLowerCase();
+        if (name === 'dockerfile' || name.startsWith('dockerfile.')) return 'shell';
+        if (name === 'makefile' || name === 'cmakelists.txt') return 'shell';
+        return EXTENSION_LANGUAGES[name.includes('.') ? name.split('.').pop() : ''] || null;
+      };
+      const languageFromDiffHeader = line => {
+        if (line.startsWith('+++ ')) {
+          const language = languageForPath(line.slice(4).split('\t')[0]);
+          return language === null ? undefined : language;
+        }
+        if (!line.startsWith('diff --git ')) return undefined;
+        const marker = line.lastIndexOf(' b/');
+        return languageForPath(marker >= 0 ? line.slice(marker + 1) : line.slice('diff --git '.length).split(' ').pop());
+      };
+      const syntaxToken = (value, kind, query) => `<span class="tok-${kind}">${highlight(value, query)}</span>`;
+      const syntaxHighlight = (value, language, query) => {
+        if (!language || query) return highlight(value, query);
+        const family = LANGUAGE_FAMILIES[language] || language;
+        const keywords = KEYWORDS[family] || new Set();
+        const lineComment = LINE_COMMENTS[family];
+        const blockComment = BLOCK_COMMENTS[family];
+        let cursor = 0; let output = '';
+        while (cursor < value.length) {
+          if (lineComment && value.startsWith(lineComment, cursor)) { output += syntaxToken(value.slice(cursor), 'comment', query); break; }
+          if (blockComment && value.startsWith(blockComment[0], cursor)) {
+            const end = value.indexOf(blockComment[1], cursor + blockComment[0].length);
+            const stop = end < 0 ? value.length : end + blockComment[1].length;
+            output += syntaxToken(value.slice(cursor, stop), 'comment', query); cursor = stop; continue;
+          }
+          const character = value[cursor];
+          if (character === '"' || character === "'" || (character === '`' && ['javascript', 'shell'].includes(family))) {
+            let end = cursor + 1;
+            while (end < value.length) { if (value[end] === '\\') { end += 2; continue; } end += 1; if (value[end - 1] === character) break; }
+            const next = value.slice(end).match(/^\s*(.)/)?.[1] || '';
+            output += syntaxToken(value.slice(cursor, end), family === 'json' && next === ':' ? 'property' : 'string', query); cursor = end; continue;
+          }
+          const number = value.slice(cursor).match(/^(?:0[xob][0-9a-f]+|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/i);
+          if (number) { output += syntaxToken(number[0], 'number', query); cursor += number[0].length; continue; }
+          const identifier = value.slice(cursor).match(family === 'css' ? /^[A-Za-z_$][\w$-]*/ : /^[A-Za-z_$][\w$]*/);
+          if (identifier) {
+            const word = identifier[0]; const normalized = word.toLocaleLowerCase(); const end = cursor + word.length;
+            const next = value.slice(end).match(/^\s*(.)/)?.[1] || '';
+            const previous = value.slice(0, cursor).match(/(?:<\/?|\bnew\s+)$/)?.[0] || '';
+            let kind = '';
+            if (keywords.has(normalized)) kind = ['true', 'false', 'null', 'none', 'nil', 'undefined'].includes(normalized) ? 'literal' : 'keyword';
+            else if ((family === 'json' || family === 'yaml' || family === 'toml' || family === 'css' || family === 'markup') && (next === ':' || next === '=')) kind = 'property';
+            else if (next === '(') kind = 'function';
+            else if (previous || /^[A-Z][A-Za-z0-9_$]*$/.test(word)) kind = 'type';
+            output += kind ? syntaxToken(word, kind, query) : escapeHtml(word); cursor = end; continue;
+          }
+          output += escapeHtml(character); cursor += 1;
+        }
+        return output;
+      };
+      const renderCodeLine = (line, language, query) => {
+        const hasPrefix = line.length && ['+', '-', ' '].includes(line[0]);
+        const prefix = hasPrefix ? `<span class="diff-prefix">${escapeHtml(line[0])}</span>` : '';
+        return prefix + syntaxHighlight(hasPrefix ? line.slice(1) : line, language, query);
+      };
+      const knownSymbolHtml = (value, symbols, language) => {
+        const known = [...new Set((symbols || []).filter(symbol => typeof symbol === 'string' && symbol.length > 1))].sort((left, right) => right.length - left.length);
+        if (!known.length) return escapeHtml(value);
+        let cursor = 0; let output = '';
+        while (cursor < value.length) {
+          let nextIndex = -1; let nextSymbol = '';
+          for (const symbol of known) {
+            const index = value.indexOf(symbol, cursor);
+            if (index >= 0 && (nextIndex < 0 || index < nextIndex || (index === nextIndex && symbol.length > nextSymbol.length))) { nextIndex = index; nextSymbol = symbol; }
+          }
+          if (nextIndex < 0) { output += escapeHtml(value.slice(cursor)); break; }
+          output += escapeHtml(value.slice(cursor, nextIndex));
+          output += `<code class="inline-code">${syntaxHighlight(nextSymbol, language, '')}</code>`;
+          cursor = nextIndex + nextSymbol.length;
+        }
+        return output;
+      };
+      const narrativeHtml = (value, symbols = [], language = null) => String(value ?? '').split(/(`[^`\n]+`)/g).map(part => {
+        if (part.startsWith('`') && part.endsWith('`')) return `<code class="inline-code">${syntaxHighlight(part.slice(1, -1), language, '')}</code>`;
+        return knownSymbolHtml(part, symbols, language);
+      }).join('');
+      const codeItemsHtml = (items, language, className = '') => (items || []).map(item => `<code class="code-chip ${className}">${syntaxHighlight(String(item ?? ''), language, '')}</code>`).join('') || '<span class="small muted">None</span>';
+
       const LONG_LINE_LIMIT = 2000;
       const longLinePreview = (line, query) => {
         const needle = query.toLocaleLowerCase();
@@ -384,8 +526,12 @@
         renderedDiffKey = renderKey;
         const hasTextDiff = Boolean(unit.diff);
         const full = hasTextDiff ? String(unit.diff).split('\n') : (unit.anchors || []).map(anchor => `${anchor.kind} · ${anchor.old_path || '∅'} → ${anchor.new_path || '∅'} · ${anchor.header || anchor.summary}`);
-        let matches = 0; let longLines = 0;
+        let matches = 0; let longLines = 0; let currentLanguage = null; const languages = new Set();
         byId('diff').innerHTML = full.map((line, index) => {
+          const newline = index < full.length - 1 ? '<span class="diff-newline">&#10;</span>' : '';
+          const detectedLanguage = languageFromDiffHeader(line);
+          if (detectedLanguage !== undefined) currentLanguage = detectedLanguage;
+          if (currentLanguage) languages.add(currentLanguage);
           let kind = '';
           if (line.startsWith('+') && !line.startsWith('+++')) kind = ' add';
           if (line.startsWith('-') && !line.startsWith('---')) kind = ' del';
@@ -395,12 +541,13 @@
           if (line.length > LONG_LINE_LIMIT) {
             longLines += 1;
             const preview = longLinePreview(line, query);
-            return `<span class="line long-line${kind}" data-line="${index + 1}"><span class="long-line-preview">${highlight(preview, query)}</span><button class="long-line-action" type="button" data-expand-line="${index}">Show full line · ${line.length.toLocaleString()} chars</button></span>`;
+            return `<span class="line long-line${kind}" data-line="${index + 1}"><span class="long-line-preview">${kind === ' meta' || kind === ' hunk' ? highlight(preview, query) : renderCodeLine(preview, currentLanguage, query)}</span><button class="long-line-action" type="button" data-expand-line="${index}">Show full line · ${line.length.toLocaleString()} chars</button>${newline}</span>`;
           }
-          return `<span class="line${kind}" data-line="${index + 1}">${highlight(line, query)}</span>`;
+          return `<span class="line${kind}" data-line="${index + 1}">${kind === ' meta' || kind === ' hunk' ? highlight(line, query) : renderCodeLine(line, currentLanguage, query)}${newline}</span>`;
         }).join('');
         byId('evidence-title').textContent = hasTextDiff ? 'Exact diff' : 'Typed non-text evidence';
-        byId('diff-count').textContent = `${full.length} ${hasTextDiff ? 'lines' : 'entries'} · complete evidence${longLines ? ` · ${longLines} long ${longLines === 1 ? 'line' : 'lines'} collapsed` : ''}${query ? ` · ${matches} matches` : ''}`;
+        const syntax = [...languages].map(language => LANGUAGE_NAMES[language] || language).join(', ');
+        byId('diff-count').textContent = `${full.length} ${hasTextDiff ? 'lines' : 'entries'} · complete evidence${syntax ? ` · ${syntax}` : ''}${longLines ? ` · ${longLines} long ${longLines === 1 ? 'line' : 'lines'} collapsed` : ''}${query ? ` · ${matches} matches` : ''}`;
       };
 
       const unitUnresolved = unit => {
@@ -413,29 +560,31 @@
       const render = () => {
         if (!units.length) { byId('unit-list').textContent = 'No changed evidence has been assigned to a review unit.'; byId('detail')?.classList.add('hidden'); return; }
         const unit = units[selected]; const unitState = state[unit.id]; const findings = (unit.finding_ids || []).map(findingById).filter(Boolean);
+        const unitLanguage = (unit.files || []).map(languageForPath).find(Boolean) || null;
+        const unitSymbols = [...(unit.symbols || []), ...(unit.entry_points || []), ...(unit.call_path || [])];
         renderList(); renderDiff();
-        byId('unit-order').textContent = `Step ${unit.order}/${units.length}`; byId('unit-title').textContent = unit.title; byId('unit-question').textContent = unit.question;
-        byId('unit-conclusion-status').textContent = unit.conclusion?.status || 'unproven'; byId('unit-conclusion').textContent = unit.conclusion?.statement || 'No unit conclusion provided.';
-        byId('unit-before').textContent = unit.before; byId('unit-after').textContent = unit.after;
+        byId('unit-order').textContent = `Step ${unit.order}/${units.length}`; byId('unit-title').innerHTML = narrativeHtml(unit.title, unitSymbols, unitLanguage); byId('unit-question').innerHTML = narrativeHtml(unit.question, unitSymbols, unitLanguage);
+        byId('unit-conclusion-status').textContent = unit.conclusion?.status || 'unproven'; byId('unit-conclusion').innerHTML = narrativeHtml(unit.conclusion?.statement || 'No unit conclusion provided.', unitSymbols, unitLanguage);
+        byId('unit-before').innerHTML = narrativeHtml(unit.before, unitSymbols, unitLanguage); byId('unit-after').innerHTML = narrativeHtml(unit.after, unitSymbols, unitLanguage);
         byId('unit-badges').innerHTML = `<span class="badge">${escapeHtml(unit.lane)}</span><span class="badge">${escapeHtml(unit.importance)}</span><span class="badge">${unit.changed_lines || 0} changed lines</span>`;
         byId('unit-depends').textContent = (unit.depends_on || []).join(', ') || 'None'; byId('unit-evidence').innerHTML = evidenceRefs(unit.evidence_ids);
-        byId('unit-surface').textContent = [...(unit.files || []), ...(unit.symbols || [])].join(', ');
-        byId('unit-contract').textContent = unit.contract || 'Unknown';
-        byId('unit-background').textContent = unit.background || 'Unknown';
-        const entries = (unit.entry_points || []).join(', ') || 'Unknown'; const path = (unit.call_path || []).join(' → ') || 'Unknown';
-        byId('unit-call-path').textContent = `Entry: ${entries} · Path: ${path}`;
-        byId('unit-compatibility').textContent = [...(unit.consumers || []), ...(unit.compatibility || [])].join(' · ') || 'Unknown';
-        byId('unit-mechanism').innerHTML = (unit.mechanism_steps || []).map(step => `<li>${escapeHtml(step)}</li>`).join('');
-        byId('unit-invariants').innerHTML = (unit.invariants || []).map(item => `<li><strong>${escapeHtml(item.status)}</strong>: ${escapeHtml(item.statement)} ${evidenceRefs(item.evidence_refs)}</li>`).join('');
-        byId('unit-claims').innerHTML = (unit.claims || []).map(claim => `<tr><td class="claim-kind">${escapeHtml(claim.kind)}</td><td>${escapeHtml(claim.statement)}</td><td>${evidenceRefs(claim.evidence_refs)}</td><td>${escapeHtml(claim.confidence)}</td></tr>`).join('');
-        byId('unit-failures').innerHTML = (unit.failure_modes || []).map(item => `<li>${escapeHtml(item.trigger)} → ${escapeHtml(item.effect)} → ${escapeHtml(item.detection_or_mitigation)}</li>`).join('');
-        byId('unit-unknowns').innerHTML = (unit.unknowns || []).map(item => `<li>${escapeHtml(item)}</li>`).join('');
-        byId('checks').innerHTML = (unit.checks || []).map(check => `<div class="check"><div><strong>${escapeHtml(check.label)}</strong><br><span class="small muted">${escapeHtml(check.setup)} → ${escapeHtml(check.action)} → ${escapeHtml(check.expected)}</span></div><div class="check-options" role="radiogroup" aria-label="${escapeHtml(check.label)} result">${Object.entries(checkLabels).map(([value, label]) => `<label class="check-option" for="check-${escapeHtml(unit.id)}-${escapeHtml(check.id)}-${value}"><input id="check-${escapeHtml(unit.id)}-${escapeHtml(check.id)}-${value}" type="radio" name="check-${escapeHtml(unit.id)}-${escapeHtml(check.id)}" value="${value}" data-check="${escapeHtml(check.id)}" ${unitState.check_results[check.id] === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></div>`).join('');
+        const files = (unit.files || []).map(file => `<code class="code-chip">${escapeHtml(file)}</code>`).join('') || '<span class="small muted">None</span>';
+        byId('unit-surface').innerHTML = `<div class="code-group"><span class="small muted">Files</span><div class="code-list">${files}</div></div><div class="code-group"><span class="small muted">Symbols</span><div class="code-list">${codeItemsHtml(unit.symbols, unitLanguage)}</div></div>`;
+        byId('unit-contract').innerHTML = narrativeHtml(unit.contract || 'Unknown', unitSymbols, unitLanguage);
+        byId('unit-background').innerHTML = narrativeHtml(unit.background || 'Unknown', unitSymbols, unitLanguage);
+        byId('unit-call-path').innerHTML = `<span class="small muted">Entry</span><div class="code-list">${codeItemsHtml(unit.entry_points, unitLanguage)}</div><span class="small muted">Direct path</span><div class="code-list">${codeItemsHtml(unit.call_path, unitLanguage)}</div>`;
+        byId('unit-compatibility').innerHTML = narrativeHtml([...(unit.consumers || []), ...(unit.compatibility || [])].join(' · ') || 'Unknown', unitSymbols, unitLanguage);
+        byId('unit-mechanism').innerHTML = (unit.mechanism_steps || []).map(step => `<li>${narrativeHtml(step, unitSymbols, unitLanguage)}</li>`).join('');
+        byId('unit-invariants').innerHTML = (unit.invariants || []).map(item => `<li><strong>${escapeHtml(item.status)}</strong>: ${narrativeHtml(item.statement, unitSymbols, unitLanguage)} ${evidenceRefs(item.evidence_refs)}</li>`).join('');
+        byId('unit-claims').innerHTML = (unit.claims || []).map(claim => `<tr><td class="claim-kind">${escapeHtml(claim.kind)}</td><td>${narrativeHtml(claim.statement, unitSymbols, unitLanguage)}</td><td>${evidenceRefs(claim.evidence_refs)}</td><td>${escapeHtml(claim.confidence)}</td></tr>`).join('');
+        byId('unit-failures').innerHTML = (unit.failure_modes || []).map(item => `<li>${narrativeHtml(item.trigger, unitSymbols, unitLanguage)} → ${narrativeHtml(item.effect, unitSymbols, unitLanguage)} → ${narrativeHtml(item.detection_or_mitigation, unitSymbols, unitLanguage)}</li>`).join('');
+        byId('unit-unknowns').innerHTML = (unit.unknowns || []).map(item => `<li>${narrativeHtml(item, unitSymbols, unitLanguage)}</li>`).join('');
+        byId('checks').innerHTML = (unit.checks || []).map(check => `<div class="check"><div><strong>${narrativeHtml(check.label, unitSymbols, unitLanguage)}</strong><br><span class="small muted">${narrativeHtml(check.setup, unitSymbols, unitLanguage)} → ${narrativeHtml(check.action, unitSymbols, unitLanguage)} → ${narrativeHtml(check.expected, unitSymbols, unitLanguage)}</span></div><div class="check-options" role="radiogroup" aria-label="${escapeHtml(check.label)} result">${Object.entries(checkLabels).map(([value, label]) => `<label class="check-option" for="check-${escapeHtml(unit.id)}-${escapeHtml(check.id)}-${value}"><input id="check-${escapeHtml(unit.id)}-${escapeHtml(check.id)}-${value}" type="radio" name="check-${escapeHtml(unit.id)}-${escapeHtml(check.id)}" value="${value}" data-check="${escapeHtml(check.id)}" ${unitState.check_results[check.id] === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></div>`).join('');
         const checkValues = Object.values(unitState.check_results); const handled = checkValues.filter(value => value !== 'unverified').length; const failed = checkValues.filter(value => value === 'failed').length;
         byId('check-progress').textContent = `${handled}/${unit.checks?.length || 0}${failed ? ` · ${failed} failed` : ''}`;
         byId('finding').innerHTML = findings.map(item => {
           const review = unitState.finding_reviews[item.id];
-          return `<div class="finding-item"><div><strong>${escapeHtml(item.category)}</strong><br>${escapeHtml(item.description)}${evidenceRefs(item.evidence_ids)}</div><div class="decisions" role="group" aria-label="Finding decision"><button type="button" data-finding="${escapeHtml(item.id)}" data-finding-decision="pending" aria-pressed="${review.decision === 'pending'}">Pending</button><button type="button" data-finding="${escapeHtml(item.id)}" data-finding-decision="confirmed" aria-pressed="${review.decision === 'confirmed'}">Confirm</button><button type="button" data-finding="${escapeHtml(item.id)}" data-finding-decision="dismissed" aria-pressed="${review.decision === 'dismissed'}">Dismiss</button></div><label class="finding-rationale small">Reviewer rationale${review.decision === 'dismissed' ? ' · required to dismiss' : ''}<textarea rows="2" data-finding-rationale="${escapeHtml(item.id)}">${escapeHtml(review.rationale)}</textarea></label></div>`;
+          return `<div class="finding-item"><div><strong>${escapeHtml(item.category)}</strong><br>${narrativeHtml(item.description, unitSymbols, unitLanguage)}${evidenceRefs(item.evidence_ids)}</div><div class="decisions" role="group" aria-label="Finding decision"><button type="button" data-finding="${escapeHtml(item.id)}" data-finding-decision="pending" aria-pressed="${review.decision === 'pending'}">Pending</button><button type="button" data-finding="${escapeHtml(item.id)}" data-finding-decision="confirmed" aria-pressed="${review.decision === 'confirmed'}">Confirm</button><button type="button" data-finding="${escapeHtml(item.id)}" data-finding-decision="dismissed" aria-pressed="${review.decision === 'dismissed'}">Dismiss</button></div><label class="finding-rationale small">Reviewer rationale${review.decision === 'dismissed' ? ' · required to dismiss' : ''}<textarea rows="2" data-finding-rationale="${escapeHtml(item.id)}">${escapeHtml(review.rationale)}</textarea></label></div>`;
         }).join('') || '<span class="small muted">No AI findings for this unit.</span>';
         byId('review-note').value = unitState.note; byId('position').textContent = `${selected + 1}/${units.length}`;
         byId('prev').disabled = selected === 0; byId('next').disabled = selected === units.length - 1; byId('next-unresolved').disabled = nextPending() < 0;
@@ -447,14 +596,15 @@
       };
 
       byId('scope').textContent = `${report.selector || ''} · ${(model.source_artifacts || []).length} source artifact(s) · ${String(report.diff_digest || '').slice(0, 12)} · ${report.drift || 'unknown'}`;
-      const renderOutcomeItems = items => (items || []).map(item => `<li>${escapeHtml(item.statement)}${evidenceRefs(item.refs)}</li>`).join('') || '<li>None</li>';
+      const reportSymbols = units.flatMap(unit => [...(unit.symbols || []), ...(unit.entry_points || []), ...(unit.call_path || [])]);
+      const renderOutcomeItems = items => (items || []).map(item => `<li>${narrativeHtml(item.statement, reportSymbols)}${evidenceRefs(item.refs)}</li>`).join('') || '<li>None</li>';
       byId('outcome-confirmed').innerHTML = renderOutcomeItems(outcome.confirmed); byId('outcome-defects').innerHTML = renderOutcomeItems(outcome.defects); byId('outcome-unproven').innerHTML = renderOutcomeItems(outcome.unproven);
-      byId('outcome-recommendation').innerHTML = `${escapeHtml(outcome.recommendation?.disposition || 'expand_scope')} · ${escapeHtml(outcome.recommendation?.reason || 'No recommendation provided.')}${evidenceRefs(outcome.recommendation?.refs)}`;
-      byId('file-rows').innerHTML = (model.files || []).map(file => `<tr><td><code>${escapeHtml(file.path)}</code></td><td>${escapeHtml((file.unit_ids || []).join(', '))}</td><td>+${file.additions || 0}/-${file.deletions || 0}</td></tr>`).join('');
-      byId('finding-rows').innerHTML = (model.findings || []).map(finding => `<tr><td>${escapeHtml(finding.category)}</td><td><button type="button" data-finding-unit="${escapeHtml(finding.unit_id)}">${escapeHtml(finding.description)}</button></td></tr>`).join('');
+      byId('outcome-recommendation').innerHTML = `${escapeHtml(outcome.recommendation?.disposition || 'expand_scope')} · ${narrativeHtml(outcome.recommendation?.reason || 'No recommendation provided.', reportSymbols)}${evidenceRefs(outcome.recommendation?.refs)}`;
+      byId('file-rows').innerHTML = (model.files || []).map(file => `<tr><td><code class="code-chip">${escapeHtml(file.path)}</code></td><td>${escapeHtml((file.unit_ids || []).join(', '))}</td><td>+${file.additions || 0}/-${file.deletions || 0}</td></tr>`).join('');
+      byId('finding-rows').innerHTML = (model.findings || []).map(finding => `<tr><td>${escapeHtml(finding.category)}</td><td><button type="button" data-finding-unit="${escapeHtml(finding.unit_id)}">${narrativeHtml(finding.description, reportSymbols)}</button></td></tr>`).join('');
       const unitDescription = id => `${id} · ${units.find(unit => unit.id === id)?.title || 'Unknown review unit'}`;
       const sourceDescription = id => { const source = (model.source_artifacts || []).find(item => item.id === id); return source ? `${id} · ${source.provenance} · ${source.selector}` : `${id} · Unknown source artifact`; };
-      byId('verification-rows').innerHTML = (model.verification || []).map(item => `<tr><td class="${item.status === 'failed' || item.status === 'missing' ? 'verify-failed' : item.status === 'verified' ? 'verify-complete' : 'verify-pending'}">${escapeHtml(item.status)}</td><td>${escapeHtml(item.behavior)}</td><td>${(item.unit_ids || []).map(id => escapeHtml(unitDescription(id))).join('<br>')}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">No verification records</td></tr>';
+      byId('verification-rows').innerHTML = (model.verification || []).map(item => `<tr><td class="${item.status === 'failed' || item.status === 'missing' ? 'verify-failed' : item.status === 'verified' ? 'verify-complete' : 'verify-pending'}">${escapeHtml(item.status)}</td><td>${narrativeHtml(item.behavior, reportSymbols)}</td><td>${(item.unit_ids || []).map(id => escapeHtml(unitDescription(id))).join('<br>')}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">No verification records</td></tr>';
       const coverage = model.coverage || {};
       byId('coverage-summary').textContent = `${coverage.validated || 0} validated · ${coverage.redacted || 0} redacted · ${coverage.total || 0} total`;
       byId('coverage-detail').textContent = `Assigned ${coverage.assigned_once || 0} · Presented ${coverage.presented_once || 0} · Missing ${coverage.missing || 0} · Duplicated ${coverage.duplicated || 0} · Unknown ${coverage.unknown || 0}`;

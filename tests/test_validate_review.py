@@ -222,6 +222,19 @@ class ReviewValidationTests(unittest.TestCase):
         self.assertNotIn("max-width: 1320px", template)
         self.assertNotIn('class="review-grid"', template)
 
+    def test_review_template_highlights_code_without_external_dependencies(self):
+        template = (ROOT / "assets" / "review-explorer-template.html").read_text(encoding="utf-8")
+        self.assertIn("const EXTENSION_LANGUAGES", template)
+        self.assertIn("const syntaxHighlight", template)
+        self.assertIn("const narrativeHtml", template)
+        self.assertIn("const unitSymbols", template)
+        self.assertIn("tok-keyword", template)
+        self.assertIn("tok-string", template)
+        self.assertIn("tok-comment", template)
+        self.assertNotIn("cdnjs.cloudflare.com", template)
+        self.assertNotIn("unpkg.com", template)
+        self.assertNotIn("cdn.jsdelivr.net", template)
+
 
 if __name__ == "__main__":
     unittest.main()
