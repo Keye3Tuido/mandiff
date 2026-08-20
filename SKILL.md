@@ -17,7 +17,8 @@ Turn one selected change set into a decision-grade tutorial for human review. Pr
 6. Pair every evidence ID with its location and meaning in human-facing output.
 7. Produce confirmed behavior, defects, unproven behavior, and a recommended disposition.
 8. Keep the canonical output agent-neutral, offline, and independent of a proprietary UI.
-9. Use the bundled workflow script. Never create build, encoding, hashing, diff, or rendering helpers.
+9. Write report prose in the predominant language of the current conversation unless the user explicitly requests another language.
+10. Use the bundled workflow script. Never create build, encoding, hashing, diff, or rendering helpers.
 
 ## Default workflow
 
@@ -65,6 +66,8 @@ The prepared directory contains:
 
 Read the inventory and each frozen hunk once. Treat proposed units and lane classifications as scaffolding, not conclusions. Group by behavior and dependency rather than filename. Keep contracts and core behavior before integration, user-facing effects, tests, and mechanical consequences.
 
+Before editing, determine the report language from the conversation as a whole, not from the language of source code, commit messages, or the bundled example. An explicit user language request wins. Use that language consistently for every human-facing semantic field, including titles, questions, contracts, conclusions, evidence labels and summaries, context summaries, findings, checks, verification, and the final recommendation. Preserve source quotations, code, identifiers, paths, commands, and model enum values exactly when translation would change their meaning. Rewrite scaffold text that is in another language; do not produce a mixed-language report merely because the example or diff uses English.
+
 Use:
 
 - `main`: contracts, runtime behavior, state transitions, integration, failure handling, and risk-bearing verification;
@@ -83,7 +86,7 @@ For every unit, provide:
 - symmetrical `before` and `after` behavior;
 - concise `background` and causal `mechanism_steps`;
 - one `conclusion` with status and statement;
-- exact selected `evidence` IDs, retaining or improving their labels and summaries.
+- exact selected `evidence` IDs, rewriting their labels and summaries in the report language when needed.
 
 For each `critical` or `normal` main unit, also provide entry points, direct call/data path, invariants, consumers, compatibility, atomic claims, concrete failure modes, explicit unknowns, and executable checks. Main units normally need 3-7 mechanism steps, 1-4 claims, and 1-3 checks.
 
@@ -144,7 +147,7 @@ Read [references/evidence-protocol.md](references/evidence-protocol.md) only for
 
 ## Precision and completion
 
-Before finalizing, do one semantic precision pass without rereading every hunk: remove title/diff restatements, unsupported intent verbs, generic risks, vague checks, and extrapolation beyond frozen evidence. Report defect, risk, design question, and missing context separately.
+Before finalizing, do one semantic precision pass without rereading every hunk: remove title/diff restatements, unsupported intent verbs, generic risks, vague checks, extrapolation beyond frozen evidence, and human-facing prose left in a different language. Report defect, risk, design question, and missing context separately.
 
 Completion requires `finalize` to succeed with every evidence item assigned and byte-validated once, zero missing/duplicate/unknown changed evidence, resolved semantic references, valid main-path completeness, and explicit limitations or tests not run.
 
