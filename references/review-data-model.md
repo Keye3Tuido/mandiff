@@ -85,13 +85,13 @@ Record context sources at the top level with `id`, `kind`, `snapshot`, `revision
 
 ## Review unit
 
-Every `critical` or `normal` main-path unit must contain the following fields. Use the literal `unknown` or `not_applicable` where evidence does not establish an answer; do not omit the field.
+Every unit keeps the same stable field names. A `critical` or `normal` main-path unit must populate the full decision-grade packet below. Supporting or `context` units may use empty arrays for entry points, call path, invariants, consumers, compatibility, claims, failure modes, unknowns, and checks when those concepts do not affect the decision; mark their completeness fields `not_applicable`. They still require exact evidence, a conclusion, and at least one mechanism step.
 
 - Identity: `id`, `order`, `title`, `lane`, and `importance`.
 - Decision frame: one `question` and one falsifiable `contract`.
 - Decision output: one `conclusion` with status, statement, and evidence references.
 - State delta: symmetrical `before` and `after` statements.
-- Execution: `entry_points`, `call_path`, and 3-7 `mechanism_steps`.
+- Execution: `entry_points`, `call_path`, and 3-7 `mechanism_steps` for main critical/normal units; at least one mechanism step for every other unit.
 - Constraints: `invariants`, `consumers`, and `compatibility`.
 - Evidence: author `depends_on`, `symbols`, and the declarative evidence `id`/`label`/`summary`; let the compiler derive `files`, `evidence_ids`, exact `diff`, ordered `diff_segments`, and stable `anchors`. Segments locate bytes but do not define completeness: the compiler derives the canonical display independently as each source file's exact metadata followed by the unit's complete owned hunks, then requires both the segments and `diff` to reproduce it.
 - Reasoning: atomic `claims`, concrete `failure_modes`, and explicit `unknowns`.

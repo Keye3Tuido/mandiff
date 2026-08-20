@@ -1,6 +1,21 @@
 # Compiler Workflow
 
-Use this pipeline to keep review generation fast and deterministic. The Agent owns semantic analysis; bundled tools own evidence mechanics and presentation duplication.
+Use this pipeline to keep review generation fast and deterministic. The Agent owns one semantic pass; bundled tools own evidence mechanics, validation, and presentation duplication.
+
+## Fast default loop
+
+For a normal review, do exactly this:
+
+1. Freeze the selected diff once and generate the inventory once.
+2. Read every changed hunk once, assigning related hunks to normally 1-8 behavioral units.
+3. Make one batched context lookup after grouping. Inspect only changed definitions and direct callers, tests, or contracts needed to decide main-path questions.
+4. Write `analysis.json` once from those notes. Keep supporting/context units proportionate and use honest `unknown` or `not_applicable` values instead of broad research.
+5. Compile once. Fix only reported validation errors without restarting the review.
+6. Render Markdown and HTML from the successful canonical model.
+
+Do not perform separate discovery, explanation, precision, and presentation readings of the same diff. Do not write a Markdown narrative before the canonical model exists. Do not search for every symbol independently; group lookup targets into the smallest available batch. The exact-evidence guarantee comes from the inventory and compiler, not repeated Agent inspection.
+
+Escalate beyond this loop only for secret redaction, mutable-source drift, binary or submodule evidence, schema failure, or a concrete unresolved high-risk claim.
 
 ## 1. Write the source manifest
 

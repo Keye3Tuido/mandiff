@@ -409,6 +409,24 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
         for check in unit.get("checks", []):
             _check_refs(check.get("claim_ids", []), local_claims, f"{unit_id}.check[{check.get('id')}].claim_ids", errors)
 
+        if unit.get("lane") == "main" and unit.get("importance") in {"critical", "normal"}:
+            required_collections = (
+                "entry_points",
+                "call_path",
+                "invariants",
+                "consumers",
+                "compatibility",
+                "claims",
+                "failure_modes",
+                "unknowns",
+                "checks",
+            )
+            for field in required_collections:
+                if not unit.get(field):
+                    errors.append(f"{unit_id}.{field}: main critical/normal units require at least one item")
+            if len(unit.get("mechanism_steps", [])) < 3:
+                errors.append(f"{unit_id}.mechanism_steps: main critical/normal units require at least 3 steps")
+
 
     _detect_dependency_cycles(units, errors)
 

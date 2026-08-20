@@ -132,6 +132,57 @@ class ReviewValidationTests(unittest.TestCase):
         self.report["units"][0]["mechanism_steps"] = ["Only one step."]
         self.assertTrue(any("at least 3" in error for error in validate_report(self.report)))
 
+    def test_supporting_context_unit_accepts_proportionate_analysis(self):
+        unit = self.report["units"][0]
+        unit["lane"] = "supporting"
+        unit["importance"] = "context"
+        unit["entry_points"] = []
+        unit["call_path"] = []
+        unit["mechanism_steps"] = ["Record the mechanical consequence of the selected hunk."]
+        unit["invariants"] = []
+        unit["consumers"] = []
+        unit["compatibility"] = []
+        unit["claims"] = []
+        unit["failure_modes"] = []
+        unit["unknowns"] = []
+        unit["checks"] = []
+        unit["finding_ids"] = []
+        unit["verification_ids"] = []
+        unit["completeness"] = {
+            key: "complete" if key == "mechanism" else "not_applicable"
+            for key in unit["completeness"]
+        }
+        for item in self.report["evidence_ledger"]:
+            item["lane"] = "supporting"
+            item["importance"] = "context"
+        self.report["findings"] = []
+        self.report["verification"] = []
+        self.report["outcome"] = {
+            "confirmed": [{"statement": "The mechanical change is present.", "refs": ["U01", "F01-H01"]}],
+            "defects": [],
+            "unproven": [],
+            "recommendation": {"disposition": "accept", "reason": "No blocking issue found.", "refs": ["U01"]},
+        }
+        self.assertEqual(validate_report(self.report), [])
+        with tempfile.TemporaryDirectory() as directory:
+            temporary = Path(directory)
+            report_path = temporary / "supporting.json"
+            report_path.write_text(json.dumps(self.report), encoding="utf-8")
+            for renderer, suffix in (("render_markdown.py", ".md"), ("render_review.py", ".html")):
+                output_path = temporary / f"supporting{suffix}"
+                process = subprocess.run(
+                    [sys.executable, str(ROOT / "scripts" / renderer), str(report_path), str(output_path)],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(process.returncode, 0, process.stderr)
+                self.assertTrue(output_path.exists())
+
+    def test_main_unit_still_requires_decision_grade_collections(self):
+        self.report["units"][0]["claims"] = []
+        self.assertTrue(any("U01.claims" in error for error in validate_report(self.report)))
+
     def test_discovered_evidence_may_remain_unassigned(self):
         self.report["units"] = []
         self.report["files"][0]["unit_ids"] = []

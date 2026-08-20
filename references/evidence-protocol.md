@@ -61,15 +61,15 @@ Assign every evidence item to exactly one ordered lane:
 - `Main path`: behavior, contracts, state, integration, failure handling, and high-value tests.
 - `Supporting path`: direct tests, docs, generated output, fixtures, repetitive wiring, lockfiles, and mechanical effects.
 
-The lane controls reading order only. It does not control completeness. Supporting evidence must still receive:
+The lane controls reading order and analysis depth, never exact-evidence coverage. Supporting evidence must still receive:
 
 - relevant background and before/after behavior;
 - a mechanism explanation proportional to its role;
 - its exact diff or typed non-text description;
-- focused human review checks;
+- focused human review checks only when a check can change the review decision;
 - a step conclusion.
 
-Do not use labels such as "other changes" when a more specific role can be established.
+Do not research main-path context for a mechanical supporting item. Use explicit `not_applicable` or `unknown` values where the canonical model requires fields. Do not use labels such as "other changes" when a more specific role can be established.
 
 ## Coverage state machine
 
