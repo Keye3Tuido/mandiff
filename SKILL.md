@@ -5,154 +5,149 @@ description: Turn a specified Git working-tree change, staged change, commit, co
 
 # ManDiff
 
-Turn one explicitly selected change set into a decision-grade tutorial for human review. Preserve exact evidence while spending analysis time in proportion to behavioral risk. The output helps a reviewer decide; it does not replace human approval.
+Turn one selected change set into a decision-grade tutorial for human review. Preserve exact evidence while spending Agent time only on semantic judgment.
 
 ## Core contract
 
 1. Treat the selected diff as immutable evidence and the reviewed repository as read-only.
-2. Review only the requested selector. Never silently include adjacent commits, nested repositories, or unrelated working-tree changes.
-3. Freeze exact raw diff bytes outside the reviewed repository. Never reconstruct, normalize, shorten, or clean up hunks.
-4. Account for every file and evidence item exactly once. Never hide unexplained evidence in a remainder bucket.
-5. Separate observed facts, frozen context, reported intent, inference, and unknowns. Cite the evidence supporting each decision-relevant claim.
-6. Keep the complete exact diff beside each review unit. Evidence coverage does not mean human approval.
-7. Never show a bare evidence ID to the reviewer; pair it with its source location and meaning.
-8. Produce concrete confirmed behavior, defects, unproven behavior, and a recommended disposition.
-9. Keep the canonical output agent-neutral and offline. Do not depend on a vendor API, MCP server, proprietary global, or chat directive.
-10. Use the bundled compiler and renderers. Do not create one-off build, encoding, hashing, diff, or rendering scripts.
+2. Review only the requested selector. Never include adjacent commits, nested repositories, or unrelated changes silently.
+3. Account for every selected evidence item exactly once; never hide a remainder bucket.
+4. Separate observed facts, frozen context, reported intent, inference, and unknowns.
+5. Keep the complete exact diff beside each review unit. Evidence coverage is not human approval.
+6. Pair every evidence ID with its location and meaning in human-facing output.
+7. Produce confirmed behavior, defects, unproven behavior, and a recommended disposition.
+8. Keep the canonical output agent-neutral, offline, and independent of a proprietary UI.
+9. Use the bundled workflow script. Never create build, encoding, hashing, diff, or rendering helpers.
 
-## Fast default workflow
+## Default workflow
 
-Read [references/compiler-workflow.md](references/compiler-workflow.md), then follow this loop exactly:
-
-1. Resolve and freeze the selector once.
-2. Run `compile_review.py inventory` once.
-3. Read every changed hunk once and group related evidence into normally 1-8 behavioral units.
-4. Perform one batched context lookup after grouping, limited to context needed for main-path decisions.
-5. Write one declarative `analysis.json` using `tests/fixtures/pipeline-analysis.json` as the authoring contract.
-6. Run `compile_review.py compile` once. Fix only reported validation errors; do not restart analysis.
-7. Render Markdown and HTML once from the successful canonical model.
-8. For a mutable selector, perform one final drift check.
-
-Do not read the same diff separately for discovery, explanation, precision, and presentation. Do not write a second narrative for Markdown or HTML. The compiler owns evidence IDs, hashes, byte spans, exact unit diffs, ledgers, counters, and validation.
-
-Load other references only when needed:
-
-- [references/evidence-protocol.md](references/evidence-protocol.md): secret redaction, multiple mutable sources, drift, binary/submodule evidence, or evidence-binding failures.
-- [references/review-data-model.md](references/review-data-model.md): the fixture is insufficient or schema validation fails.
-- [references/agent-portability.md](references/agent-portability.md): a host adapter or text-only fallback is required.
-- [references/visual-review-format.md](references/visual-review-format.md): changing or debugging the HTML renderer.
-- [references/review-guide-format.md](references/review-guide-format.md): changing or debugging the Markdown renderer.
-
-Do not load conditional references during a normal review.
-
-## Freeze the target
-
-Confirm the repository and selector. If either is ambiguous and cannot be discovered safely, ask one concise question.
-
-Supported selectors include:
-
-- unstaged changes: `git diff --no-ext-diff --binary`;
-- staged changes: `git diff --cached --no-ext-diff --binary`;
-- all uncommitted changes: separate staged and unstaged artifacts;
-- one commit: `<commit>^..<commit>` for a non-merge commit;
-- merge commit: the requested parent, or an explicitly stated first-parent comparison;
-- exact commit range or endpoints requested by the user;
-- pull request with frozen base and head SHAs;
-- patch file or pasted patch as its own source of truth.
-
-Resolve symbolic refs to object IDs. Store every independently acquired diff as a separate source artifact with provenance, selector, base/head, acquisition operation, digest, byte count, mutability, and drift state. Use historical base/head snapshots for surrounding code instead of a possibly different working tree.
-
-For submodule pointers, review the pointer update only unless nested changes are explicitly in scope. For secrets or personal data, follow the redaction protocol before creating any deliverable.
-
-## Inventory evidence
-
-Write the source manifest outside the reviewed repository, then run:
+Read [references/compiler-workflow.md](references/compiler-workflow.md), then use only two normal commands:
 
 ```sh
-python3 scripts/compile_review.py inventory source-manifest.json inventory.json
+python3 scripts/mandiff.py prepare <selector arguments>
+# Edit only analysis-draft.json in the printed review directory.
+python3 scripts/mandiff.py finalize <review-directory>
 ```
 
-The inventory assigns stable file, hunk, and typed non-text IDs. Read it for navigation and the frozen diff for semantics. Never calculate or transcribe IDs, offsets, fingerprints, statistics, or commitments yourself.
+`prepare` owns repository discovery, immutable ref resolution, diff capture, report directory, source manifest, inventory, evidence IDs, default labels, bounded grouping scaffolds, and context/test candidates.
 
-Commit messages, PR descriptions, issues, and requirements prove reported intent only. Add frozen context only when it changes a review decision:
+The Agent then reads each hunk once, corrects the proposed behavioral groups, and writes only semantic content in `analysis-draft.json`. Do not write final IDs, completeness tables, hashes, byte spans, ledgers, coverage, outcome aggregation, Markdown, or HTML.
 
-- the changed definition or contract;
-- direct callers, callees, readers, or writers;
-- the nearest relevant test or executable check;
-- persistence, migration, configuration, or compatibility rules touched by the change.
+`finalize` owns context freezing, local-key resolution, all final IDs, completeness, outcome aggregation, drift, exact evidence compilation, validation, Markdown, HTML, and private redaction cleanup. Fix only errors it reports; do not restart the review.
 
-Batch those lookups after unit grouping. Stop once the claim is decidable; record an explicit unknown instead of touring adjacent architecture.
+## Select the target
 
-## Build the review path
+Use one selector:
 
-Group by behavior and dependency rather than filename. Prefer contracts, core behavior, integration, user-facing effects, then supporting tests or generated consequences. Keep a change close to its direct tests.
+```sh
+python3 scripts/mandiff.py prepare --repo <repo> --unstaged
+python3 scripts/mandiff.py prepare --repo <repo> --staged
+python3 scripts/mandiff.py prepare --repo <repo> --uncommitted
+python3 scripts/mandiff.py prepare --repo <repo> --commit <revision>
+python3 scripts/mandiff.py prepare --repo <repo> --commit <merge> --parent <n>
+python3 scripts/mandiff.py prepare --repo <repo> --range <base..head>
+python3 scripts/mandiff.py prepare --patch <patch-file>
+```
 
-Use two lanes:
+Use `--output <directory>` only when the user requested a location; otherwise accept the portable default outside the reviewed repository. Use `--repository`, `--selector-label`, `--base`, `--head`, and `--provenance pull_request` to describe a provider-frozen patch. A pull-request patch requires frozen base and head identities.
+
+If repository or selector intent is ambiguous, ask one concise question. Merge commits require an explicit parent. Submodule evidence covers only the pointer unless nested changes are explicitly selected.
+
+## Review the prepared evidence
+
+The prepared directory contains:
+
+- `inventory.json`: compact exact evidence index;
+- `analysis-draft.json`: Agent-editable semantic model;
+- `context-candidates.json`: changed locators and nearby test-name candidates;
+- `sources/`: frozen safe display diffs;
+- `prepare-state.json`: machine-owned acquisition and drift state.
+
+Read the inventory and each frozen hunk once. Treat proposed units and lane classifications as scaffolding, not conclusions. Group by behavior and dependency rather than filename. Keep contracts and core behavior before integration, user-facing effects, tests, and mechanical consequences.
+
+Use:
 
 - `main`: contracts, runtime behavior, state transitions, integration, failure handling, and risk-bearing verification;
-- `supporting`: direct tests, docs, generated output, fixtures, lockfiles, repetitive wiring, and mechanical consequences.
+- `supporting`: tests, docs, generated output, fixtures, lockfiles, repetitive wiring, and mechanical consequences.
 
-Lane controls analysis depth, never exact-evidence coverage. Promote a supposedly mechanical item when it changes behavior or risk.
+Promote a supposedly mechanical item if it changes behavior or risk. Prefer 1-8 units. The scaffold caps a proposed unit at 12 evidence items or 600 changed lines, but the Agent may merge or split units without duplicating evidence.
 
-Prefer fewer, broader units. Normally use 1-8 units, with about 3-12 related hunks or 100-600 changed lines per unit. Never split a hunk to meet a size target. If a hunk spans concerns, give it one owner and cross-reference its ID without duplicating the diff.
+## Edit the compact semantic draft
 
-## Author proportionate analysis
+Use stable human keys such as `parser-contract` or `startup-check`; `finalize` assigns `Uxx`, `CLxx`, `FMxx`, `Rxx`, and `Vxx` IDs.
 
-For every unit, provide a semantic title, review question, contract, symmetrical before/after statements, concise background, conclusion, evidence labels/summaries, and at least one causal mechanism step.
+For every unit, provide:
 
-For each `critical` or `normal` main unit, also provide:
+- `key`, semantic `title`, `lane`, and `importance`;
+- one `question` and falsifiable `contract`;
+- symmetrical `before` and `after` behavior;
+- concise `background` and causal `mechanism_steps`;
+- one `conclusion` with status and statement;
+- exact selected `evidence` IDs, retaining or improving their labels and summaries.
 
-- entry point and direct call/data path;
-- 3-7 causal mechanism steps;
-- invariants, direct consumers, and compatibility consequences;
-- normally 1-4 atomic claims with epistemic kind, evidence, and confidence;
-- concrete failure modes in `trigger -> effect -> detection/mitigation` form;
-- explicit unknowns;
-- normally 1-3 checks in `setup -> action -> expected` form linked to claims.
+For each `critical` or `normal` main unit, also provide entry points, direct call/data path, invariants, consumers, compatibility, atomic claims, concrete failure modes, explicit unknowns, and executable checks. Main units normally need 3-7 mechanism steps, 1-4 claims, and 1-3 checks.
 
-For supporting or `context` units, keep exact evidence, explanation, and conclusion, but omit irrelevant collections. Use empty arrays and `not_applicable` completeness states instead of inventing claims, risks, consumers, or checks. One short mechanism step is enough for a purely mechanical consequence.
+For supporting or `context` units, omit irrelevant collections. One causal mechanism step is enough for a purely mechanical consequence. `finalize` derives honest `not_applicable` completeness states instead of requiring filler.
 
-Report a defect only when evidence supports it. Distinguish defect, risk, design question, and missing context. A unit conclusion must be `confirmed`, `partially_confirmed`, `defect`, or `unproven` and state what can be decided now.
+References in the compact draft use keys:
 
-Do one precision pass over `analysis.json`, without rereading every hunk:
+- claim `evidence_refs`: changed evidence IDs or context/requirement keys;
+- failure/check `claim_refs`: claim keys in the same unit;
+- unit `depends_on`: unit keys;
+- finding `unit`, `claim_refs`, and `failure_refs`: semantic keys;
+- verification `unit_refs` and `claim_refs`: semantic keys;
+- cross-unit claim references: `<unit-key>.<claim-key>`.
 
-- split claims that require different evidence or confidence;
-- remove title/diff restatements and generic risks;
-- replace intent verbs with observed mechanism unless end-to-end evidence proves the outcome;
-- keep before/after concrete and mechanism steps causal;
-- prefer a short unknown over unsupported extrapolation.
+Observed claims default to the owning unit's changed evidence when `evidence_refs` is omitted. Findings default to the owning unit's evidence. Conclusion references default to the unit evidence. Use explicit references when a statement depends on a narrower or contextual source.
 
-## Compile and render
+`finalize` derives confirmed, defect, and unproven outcome lists from conclusions and findings. The Agent still writes the recommendation disposition and evidence-backed reason, and may supply explicit outcome entries when the derived summary is insufficient.
 
-Run only the bundled pipeline:
+Use `tests/fixtures/pipeline-draft.json` as the complete generic compact example. Read [references/review-data-model.md](references/review-data-model.md) only when that example is insufficient or validation fails.
 
-```sh
-python3 scripts/compile_review.py compile inventory.json analysis.json review.json
-python3 scripts/render_markdown.py review.json review.md
-python3 scripts/render_review.py review.json review.html
+## Add frozen context
+
+Context selection remains semantic; acquisition is mechanical. A context source may contain a direct `excerpt`, or declare:
+
+```json
+{
+  "key": "reader",
+  "kind": "caller",
+  "snapshot": "head",
+  "revision": "<exact-commit-or-HEAD-INDEX-WORKTREE>",
+  "path": "src/reader.ext",
+  "start": 20,
+  "lines": 30,
+  "locator": "read_value",
+  "summary": "Why this context changes the review decision."
+}
 ```
 
-The compiler derives and validates source embeddings, exact diffs, anchors, ownership, ledger, summary, coverage, and digest. Its successful result is authoritative; do not manually recount or re-slice evidence afterward. Both renderers consume the same model, so never hand-write a parallel guide.
+`finalize` reads the exact snapshot, resolves commit refs, slices the declared lines, and fingerprints the excerpt. Add only changed definitions/contracts, direct callers or consumers, nearest relevant tests, and affected persistence/configuration/compatibility rules. Stop when the claim is decidable; record an unknown instead of touring adjacent architecture.
 
-The report outcome must lead with short lists of confirmed behavior, actionable defects, unproven requested behavior, and `accept`, `request_changes`, or `expand_scope` with evidence-backed reasons. The HTML explorer may store reviewer decisions separately, but mutable state must never alter `review.json`.
+Commit messages, pull-request descriptions, issues, and requirements establish reported intent only. They never prove runtime behavior.
 
-If Python or artifact output is unavailable, use the text fallback and state the limitation. Do not reimplement the toolchain in another language.
+## Redaction
 
-## Large and mutable reviews
+The Agent identifies sensitive values; the script performs every cryptographic and byte-handling step. Put values in a private JSON file, never on the command line:
 
-Never truncate evidence. For an oversized guide, preserve one inventory and digest, publish an overview and unit index, then divide output only at unit boundaries. Keep unprocessed evidence in `discovered` or `assigned`, never `presented` or `validated`.
+```json
+{"values": ["sensitive literal"]}
+```
 
-Immediately before completion of a mutable review, reacquire the same selector once. If its digest differs, mark the report stale and stop; never attach old anchors to nearby code.
+Pass `--redactions <private-json>` to `prepare`. It creates safe display diffs, keyed original commitments, and temporary private material outside the report. `finalize` redacts matching semantic/context strings and deletes its private material after successful validation. If abandoning the review, run:
 
-## Completion gate
+```sh
+python3 scripts/mandiff.py cleanup <review-directory>
+```
 
-Finish only when:
+Read [references/evidence-protocol.md](references/evidence-protocol.md) only for redaction failures, mixed mutable sources, binary/submodule evidence, or evidence-binding diagnostics.
 
-- compile and both renderers succeed;
-- every selected evidence item is assigned and validated exactly once, or explicitly redacted;
-- coverage has zero missing, duplicated, and unknown changed evidence;
-- all main critical/normal units pass the completeness gate;
-- claims, checks, findings, and outcome references resolve;
-- limitations, unavailable context, binaries, redactions, drift, and tests not run are stated.
+## Precision and completion
 
-The bundled scripts require Python 3.9 or newer and only the standard library. To validate an installation, run the generic fixture commands documented in [references/compiler-workflow.md](references/compiler-workflow.md); fixture validation does not authorize reviewing or modifying the current repository.
+Before finalizing, do one semantic precision pass without rereading every hunk: remove title/diff restatements, unsupported intent verbs, generic risks, vague checks, and extrapolation beyond frozen evidence. Report defect, risk, design question, and missing context separately.
+
+Completion requires `finalize` to succeed with every evidence item assigned and byte-validated once, zero missing/duplicate/unknown changed evidence, resolved semantic references, valid main-path completeness, and explicit limitations or tests not run.
+
+For oversized output, keep one prepared inventory and split only at unit boundaries; never truncate evidence. For host-specific delivery or text-only fallback, read [references/agent-portability.md](references/agent-portability.md). Read visual or Markdown format references only when changing a renderer.
+
+The scripts require Python 3.9+ and Git for repository selectors, use only the standard library, and never modify the reviewed repository.

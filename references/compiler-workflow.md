@@ -1,96 +1,123 @@
 # Compiler Workflow
 
-Use this pipeline to keep review generation fast and deterministic. The Agent owns one semantic pass; bundled tools own evidence mechanics, validation, and presentation duplication.
+The Agent owns semantic analysis. `mandiff.py` owns acquisition, evidence mechanics, identifier expansion, drift, validation, and presentation.
 
-## Fast default loop
+## Primary workflow
 
-For a normal review, do exactly this:
+### 1. Prepare
 
-1. Freeze the selected diff once and generate the inventory once.
-2. Read every changed hunk once, assigning related hunks to normally 1-8 behavioral units.
-3. Make one batched context lookup after grouping. Inspect only changed definitions and direct callers, tests, or contracts needed to decide main-path questions.
-4. Write `analysis.json` once from those notes. Keep supporting/context units proportionate and use honest `unknown` or `not_applicable` values instead of broad research.
-5. Compile once. Fix only reported validation errors without restarting the review.
-6. Render Markdown and HTML from the successful canonical model.
+Run one selector command:
 
-Do not perform separate discovery, explanation, precision, and presentation readings of the same diff. Do not write a Markdown narrative before the canonical model exists. Do not search for every symbol independently; group lookup targets into the smallest available batch. The exact-evidence guarantee comes from the inventory and compiler, not repeated Agent inspection.
-
-Escalate beyond this loop only for secret redaction, mutable-source drift, binary or submodule evidence, schema failure, or a concrete unresolved high-risk claim.
-
-## 1. Write the source manifest
-
-Write UTF-8 JSON directly with the host's structured file tool. Keep it outside the reviewed repository:
-
-```json
-{
-  "schema_version": "1.0",
-  "report": {
-    "id": "stable-report-id",
-    "repository": "repository identity",
-    "selector": "exact selected change",
-    "base": "optional aggregate base",
-    "head": "optional aggregate head",
-    "scope_exclusions": []
-  },
-  "sources": [
-    {
-      "diff_path": "/absolute/path/to/frozen.diff",
-      "provenance": "commit",
-      "selector": "base..head",
-      "acquisition": "exact read-only command",
-      "captured_at": "optional RFC 3339 timestamp",
-      "base": "base identity",
-      "head": "head identity",
-      "mutable": false,
-      "drift": "immutable"
-    }
-  ]
-}
+```sh
+python3 scripts/mandiff.py prepare --repo /path/to/repo --unstaged
+python3 scripts/mandiff.py prepare --repo /path/to/repo --staged
+python3 scripts/mandiff.py prepare --repo /path/to/repo --uncommitted
+python3 scripts/mandiff.py prepare --repo /path/to/repo --commit REVISION
+python3 scripts/mandiff.py prepare --repo /path/to/repo --range BASE..HEAD
+python3 scripts/mandiff.py prepare --patch /path/to/change.diff
 ```
 
-Keep staged and unstaged sources separate. Use only the provenance values accepted by the final model.
+The command prints the review directory and semantic draft path. It:
 
-For a redacted source, set `diff_path` to the safe display diff and add `redacted: true`, `original_diff_path`, and `hmac_key_path`. The inventory command computes private original commitments and safe display anchors, then omits the original path and key from its output. Retain the private files only until drift and final validation finish, then delete them.
+- discovers the repository root;
+- resolves historical refs to immutable object IDs;
+- rejects an ambiguous merge parent;
+- captures staged and unstaged sources separately;
+- writes exact diff bytes outside the reviewed repository;
+- creates the source manifest and inventory;
+- assigns evidence IDs and mechanical labels;
+- proposes bounded main/supporting groups;
+- emits changed locators and nearby test-name candidates;
+- stores machine-readable acquisition operations for drift.
 
-## 2. Generate the compact inventory
+Use `--output` only for an explicitly requested location. Otherwise the portable default is `~/Documents/mandiff-reviews/<repository>/<digest>/` when Documents exists, or `~/mandiff-reviews/...`.
+
+For a provider-frozen patch, use `--provenance pull_request --selector-label ... --base ... --head ...`. `prepare` does not fetch provider data; the host adapter supplies the already frozen patch.
+
+### 2. Edit semantic data once
+
+Read `inventory.json`, `context-candidates.json`, and each selected hunk. Correct the proposed groups and edit only `analysis-draft.json`.
+
+The draft uses `schema_version: "2.0"` and semantic keys instead of final report IDs. Use `tests/fixtures/pipeline-draft.json` as the complete example.
+
+Agent-authored content is limited to:
+
+- review questions, contracts, before/after behavior, background, and causal mechanism;
+- lane, importance, grouping, dependencies, and relevant symbols;
+- context selection and summaries;
+- atomic claims, failure modes, checks, findings, and verification;
+- unit conclusions and final recommendation.
+
+Do not author:
+
+- source manifest or inventory fields;
+- final `Uxx`, `CLxx`, `FMxx`, `Rxx`, `Vxx`, `Cxx`, or `RQxx` IDs;
+- completeness tables;
+- derived outcome lists unless the automatic aggregation needs a semantic override;
+- files, changed-line counts, exact unit diffs, segments, anchors, ownership, ledger, summary, digest, or coverage;
+- Markdown or HTML.
+
+Optional context can include an excerpt directly. To let the script acquire it, supply exact `revision`, `path`, one-based `start`, and `lines`; `finalize` freezes and fingerprints that range. `WORKTREE` and `INDEX` are accepted revision tokens. Other values resolve to exact commits.
+
+### 3. Finalize
+
+```sh
+python3 scripts/mandiff.py finalize <review-directory>
+```
+
+The command:
+
+1. reacquires every mutable source and rejects drift;
+2. freezes declared context ranges;
+3. resolves semantic keys and assigns stable final IDs;
+4. derives completeness and outcome aggregation;
+5. expands the compact draft into `analysis.json` schema 1.0;
+6. compiles and validates canonical `review.json`;
+7. renders `review.md` and self-contained `review.html`;
+8. removes private redaction material after success.
+
+Fix only the reported draft or validation error, then rerun `finalize`. Do not repeat evidence discovery.
+
+## Compact references
+
+Keys are scoped as follows:
+
+- unit, context, requirement, finding, and verification keys are report-wide;
+- claim and failure keys are local to their unit;
+- use `<unit-key>.<claim-key>` for a cross-unit claim;
+- changed evidence keeps inventory IDs such as `F01-H01`;
+- observed claims may omit evidence refs to inherit unit evidence;
+- finding evidence and conclusion evidence also default to their unit evidence.
+
+The expander rejects unknown keys, duplicate keys, unresolved scaffold placeholders, missing evidence ownership, and every canonical-model error.
+
+## Redaction
+
+Pass a private JSON value list to prepare:
+
+```sh
+python3 scripts/mandiff.py prepare --patch change.diff --redactions /private/redactions.json
+```
+
+The script replaces exact values only in display bytes, stores original bytes and a random HMAC key in an OS temporary directory, computes original/display commitments through the inventory compiler, and never embeds private bytes in report artifacts. Finalization applies the same replacement to semantic strings and context before rendering, then deletes script-owned private material.
+
+If work is abandoned before successful finalization:
+
+```sh
+python3 scripts/mandiff.py cleanup <review-directory>
+```
+
+## Low-level compatibility path
+
+The original declarative compiler remains available for existing integrations and diagnostics:
 
 ```sh
 python3 scripts/compile_review.py inventory source-manifest.json inventory.json
-```
-
-The command parses all Git diff sections, assigns source/file/evidence IDs, detects text and typed entries, records byte spans and fingerprints, and checks that frozen paths still match. `inventory.json` does not embed the raw diff bytes, so it remains compact enough for Agent use.
-
-Read the inventory for navigation and read the frozen diff for substantive review. Never calculate or rewrite its mechanical fields.
-
-## 3. Write declarative analysis
-
-Use `tests/fixtures/pipeline-analysis.json` as the complete generic example. Write `analysis.json` directly as UTF-8 JSON; do not generate it with executable code.
-
-Include:
-
-- `schema_version: "1.0"`;
-- report outcome, context sources, reported requirements, findings, and verification;
-- ordered semantic review units;
-- an `evidence` array per unit containing only `id`, human-readable `label`, and decision-relevant `summary`.
-
-Do not include these compiler-derived unit fields:
-
-- `files`, `evidence_ids`, `changed_lines`;
-- `diff`, `diff_segments`, `anchors`;
-- `finding_ids`, `verification_ids`.
-
-The compiler derives context fingerprints from `excerpt` when present. Otherwise provide a precomputed frozen-context fingerprint.
-
-## 4. Compile once and render twice
-
-```sh
 python3 scripts/compile_review.py compile inventory.json analysis.json review.json
 python3 scripts/render_markdown.py review.json review.md
 python3 scripts/render_review.py review.json review.html
 ```
 
-Compilation derives exact unit diffs, anchors, source embedding, file/unit links, evidence ledger, summary, digest, drift, and coverage. It rejects unassigned or duplicate evidence, mixed text/non-text units, agent-authored derived fields, changed frozen artifacts, and every final-model validation error.
+This path accepts full `analysis.json` schema 1.0 and does not provide selector capture, compact keys, automatic IDs/completeness/outcome, context acquisition, or drift orchestration. Do not choose it for a normal review.
 
-Both renderers consume the same validated model. Never write a second narrative for Markdown or HTML, and never create `build_review.py`, `build_review_utf8.py`, encoding repair scripts, custom renderers, or equivalent one-off tooling.
-
-If the current host cannot run Python, produce the text-only fallback and state that the portable bundle was unavailable. Do not spend review time reimplementing the toolchain.
+If Python is unavailable, use the text-only fallback and state that deterministic packaging was unavailable. Never recreate the toolchain in another language during a review.

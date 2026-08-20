@@ -28,7 +28,7 @@ Choose the highest level the current agent can support:
 
 The level may change presentation, never evidence coverage or conclusions.
 
-When Python 3.9+ is available, use the bundled `compile_review.py`, `render_markdown.py`, and `render_review.py` unchanged. This is the portable implementation path, not a host adapter. If those scripts cannot run, fall back to text-only output; never create an ad hoc replacement during the review.
+When Python 3.9+ is available, use the bundled `mandiff.py prepare/finalize` workflow unchanged. The lower-level compiler and renderers remain compatibility and diagnostic APIs. This is the portable implementation path, not a host adapter. If the scripts cannot run, fall back to text-only output; never create an ad hoc replacement during the review.
 
 ## Adapter boundary
 

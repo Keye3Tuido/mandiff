@@ -4,7 +4,7 @@ Use one canonical model for Markdown, HTML, and reviewer-state export. Field nam
 
 When JSON Schema tooling is available, validate the immutable report against `../assets/review-model.schema.json`.
 
-During authoring, use the two declarative compiler inputs described in `compiler-workflow.md`: a source manifest and semantic `analysis.json`. Do not hand-author the canonical report. `compile_review.py` derives source embeddings, file records, exact diff segments, anchors, ownership links, ledger, summary, and coverage before validating the canonical model below.
+During normal authoring, use the compact `analysis-draft.json` schema 2.0 created by `mandiff.py prepare`. Semantic keys replace final IDs, and optional fields may be omitted. `mandiff.py finalize` freezes declared context, assigns IDs, derives completeness and outcome aggregation, and writes expanded `analysis.json` schema 1.0 before invoking the canonical compiler. Do not hand-author the source manifest or canonical report. The low-level manifest plus schema 1.0 analysis path remains available only for compatibility and diagnostics.
 
 ## Evidence classes
 
