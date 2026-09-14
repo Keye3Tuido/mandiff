@@ -18,7 +18,8 @@ Turn one selected change set into a decision-grade tutorial for human review. Pr
 7. Produce confirmed behavior, defects, unproven behavior, and a recommended disposition.
 8. Keep the canonical output agent-neutral, offline, and independent of a proprietary UI.
 9. Write report prose in the predominant language of the current conversation unless the user explicitly requests another language.
-10. Use the bundled workflow script. Never create build, encoding, hashing, diff, or rendering helpers.
+10. Write human-facing descriptions in plain, precise, direct, and unambiguous language. Prefer concrete words and short sentences. Use technical terms only when necessary; explain a term at first use, never invent terminology, and state uncertainty plainly when the evidence is insufficient.
+11. Use the bundled workflow script. Never create build, encoding, hashing, diff, or rendering helpers.
 
 ## Default workflow
 
@@ -66,7 +67,7 @@ The prepared directory contains:
 
 Read the inventory and each frozen hunk once. Treat proposed units and lane classifications as scaffolding, not conclusions. Group by behavior and dependency rather than filename. Keep contracts and core behavior before integration, user-facing effects, tests, and mechanical consequences.
 
-Before editing, determine the report language from the conversation as a whole, not from the language of source code, commit messages, or the bundled example. An explicit user language request wins. Use that language consistently for every human-facing semantic field, including titles, questions, contracts, conclusions, evidence labels and summaries, context summaries, findings, checks, verification, and the final recommendation. Preserve source quotations, code, identifiers, paths, commands, and model enum values exactly when translation would change their meaning. Rewrite scaffold text that is in another language; do not produce a mixed-language report merely because the example or diff uses English.
+Before editing, determine the report language from the conversation as a whole, not from the language of source code, commit messages, or the bundled example. An explicit user language request wins. Use that language consistently for every human-facing semantic field, including titles, questions, contracts, conclusions, evidence labels and summaries, context summaries, findings, checks, verification, and the final recommendation. Write these fields so a person can understand them without decoding agent jargon: prefer concrete subjects, actions, conditions, and results; use a technical term only when it adds precision; explain it at first use; and do not create names for concepts that the source does not name. If the evidence does not establish a point, say that it is unknown or unverified instead of implying certainty. Preserve source quotations, code, identifiers, paths, commands, and model enum values exactly when translation would change their meaning. Rewrite scaffold text that is in another language; do not produce a mixed-language report merely because the example or diff uses English.
 
 Use:
 

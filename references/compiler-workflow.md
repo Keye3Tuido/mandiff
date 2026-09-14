@@ -38,7 +38,7 @@ For a provider-frozen patch, use `--provenance pull_request --selector-label ...
 
 Read `inventory.json`, `context-candidates.json`, and each selected hunk. Correct the proposed groups and edit only `analysis-draft.json`.
 
-Determine the report language from the predominant language of the current conversation; an explicit user request overrides that default. Use it for all human-facing semantic prose. Do not infer the report language from the diff, repository, commit message, or English example. Keep code, symbols, paths, commands, source quotations, and fixed enum values unchanged where translation would reduce precision. Rewrite scaffold titles, labels, summaries, and placeholders that do not match the chosen language.
+Determine the report language from the predominant language of the current conversation; an explicit user request overrides that default. Use it for all human-facing semantic prose. Write that prose in plain, precise, direct, and unambiguous language: prefer concrete subjects, actions, conditions, and results; keep sentences short where possible; use technical terms only when they add precision; explain each necessary term at first use; and never invent terminology or concepts. When the evidence is insufficient, say that the point is unknown or unverified. Do not infer the report language from the diff, repository, commit message, or English example. Keep code, symbols, paths, commands, source quotations, and fixed enum values unchanged where translation would reduce precision. Rewrite scaffold titles, labels, summaries, and placeholders that do not match the chosen language.
 
 The draft uses `schema_version: "2.0"` and semantic keys instead of final report IDs. Use `tests/fixtures/pipeline-draft.json` as the complete example.
 
