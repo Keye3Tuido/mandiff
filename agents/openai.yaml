@@ -1,4 +1,4 @@
 interface:
   display_name: "ManDiff"
-  short_description: "将大型改动转成跨 Agent 可移植、可视化的证据审阅指南"
+  short_description: "将 Git 改动整理为证据完整、可人工审阅的指南文档"
   default_prompt: "Use $mandiff to prepare the selected change, write its semantic review prose in the predominant language of our conversation unless I specify another language, and finalize the portable evidence-complete report with the bundled workflow."

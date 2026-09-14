@@ -1,6 +1,6 @@
 ---
 name: mandiff
-description: Turn a specified Git working-tree change, staged change, commit, commit range, patch, or pull request into a portable, visual-first, evidence-complete tutorial for human review. Use when any coding agent is asked to explain a large or cross-cutting diff step by step, split changes into logical review units, visualize dependencies and risks, prepare a change for manual audit, or make code review easier. Freeze the selected diff, build an ordered review path, emit an agent-neutral review model, and present every original hunk exactly once with context and focused human checks. Operate read-only and never modify the reviewed source.
+description: Create a portable, evidence-complete review guide for a selected Git diff, commit, range, patch, or pull request. Use when a user needs a large or cross-cutting change explained by behavior, checked for evidence coverage and risks, or prepared for manual audit. Preserve exact evidence, freeze the reviewed inputs, and keep the reviewed source read-only.
 ---
 
 # ManDiff
