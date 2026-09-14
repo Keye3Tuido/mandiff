@@ -76,6 +76,15 @@ class ReviewCompilerTests(unittest.TestCase):
             markdown_text = markdown_path.read_text(encoding="utf-8")
             self.assertIn("更新存储值", markdown_text)
             self.assertIn("```diff", markdown_text)
+            self.assertIn('<a id="evidence-f01-h01"></a>', markdown_text)
+            self.assertIn(
+                "[`F01-H01`](#evidence-f01-h01) · src/example.txt:1 · "
+                "Replaces the stored literal from old to new.",
+                markdown_text,
+            )
+            for line in markdown_text.splitlines():
+                if "F01-H01" in line:
+                    self.assertIn("src/example.txt", line)
 
     def test_compile_rejects_agent_authored_derived_fields(self):
         with tempfile.TemporaryDirectory() as directory:

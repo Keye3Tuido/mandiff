@@ -74,7 +74,7 @@ Identify the highest-risk units and explain the failure mode each could introduc
 
 | Step | Lane | Importance | Review unit | Evidence IDs | Main question |
 |---:|---|---|---|---|---|
-| 1 | `<main/supporting>` | `<critical/normal/context>` | `<title>` | `<IDs>` | `<question>` |
+| 1 | `<main/supporting>` | `<critical/normal/context>` | `<title>` | `<linked ID · path:line · meaning>` | `<question>` |
 
 ## 6. Step `<n>/<total>`: `<review unit title>`
 
@@ -100,7 +100,7 @@ State previous behavior and new behavior. Mark inferred intent as `Inference:`.
 
 ### Affected surface
 
-- Evidence: `<IDs>`
+- Evidence: `<linked ID · path:line · meaning>`
 - Lane: `<main/supporting>`
 - Importance: `<critical/normal/context>`
 - Files: `<paths>`
@@ -111,7 +111,9 @@ State previous behavior and new behavior. Mark inferred intent as `Inference:`.
 
 | Evidence | Stable anchor | Role in this unit |
 |---|---|---|
-| `<ID plus concise label>` | `<provenance, path, hunk header or entry type>` | `<what this evidence establishes and why it belongs here>` |
+| `<linked ID plus concise label>` | `<provenance, path, hunk header or entry type>` | `<what this evidence establishes and why it belongs here>` |
+
+Never print a changed-evidence ID such as `F01-H01` by itself. Every occurrence must include a readable file-and-line locator when available and what the evidence establishes; link it to this hunk-map entry in Markdown and to the owning exact diff in interactive output.
 
 ### Mechanism walkthrough
 

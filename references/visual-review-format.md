@@ -54,7 +54,7 @@ When the host supports an inline interactive view, make review units selectable.
 9. findings and unresolved questions;
 10. evidence-validation state and human-decision state.
 
-Every visible reference must decode the stable ID inline or in an immediately available tooltip: source path or symbol, followed by a one-line statement of what that reference establishes. A bare identifier is never sufficient UI copy.
+Every visible reference must decode the stable ID inline: show the source path and line when available, followed by a one-line statement of what that reference establishes. A bare identifier is never sufficient UI copy. In interactive output, selecting changed evidence must open its owning review unit, show the complete exact diff, and locate the referenced hunk.
 
 Support the complete reviewer loop:
 

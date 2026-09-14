@@ -286,6 +286,13 @@ class ReviewValidationTests(unittest.TestCase):
         self.assertNotIn("unpkg.com", template)
         self.assertNotIn("cdn.jsdelivr.net", template)
 
+    def test_review_template_decodes_and_navigates_evidence_references(self):
+        template = (ROOT / "assets" / "review-explorer-template.html").read_text(encoding="utf-8")
+        self.assertIn("const anchorLocation", template)
+        self.assertIn('data-evidence-id="${escapeHtml(id)}"', template)
+        self.assertIn("const selectEvidence", template)
+        self.assertIn("entry.query || ''", template)
+
 
 if __name__ == "__main__":
     unittest.main()

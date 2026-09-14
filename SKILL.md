@@ -14,7 +14,7 @@ Turn one selected change set into a decision-grade tutorial for human review. Pr
 3. Account for every selected evidence item exactly once; never hide a remainder bucket.
 4. Separate observed facts, frozen context, reported intent, inference, and unknowns.
 5. Keep the complete exact diff beside each review unit. Evidence coverage is not human approval.
-6. Pair every evidence ID with its location and meaning in human-facing output.
+6. Never show a bare evidence ID in human-facing output. Render every reference as the stable ID plus its file and line when available, a plain-language statement of what it proves, and a direct jump to the owning unit and exact diff in interactive output.
 7. Produce confirmed behavior, defects, unproven behavior, and a recommended disposition.
 8. Keep the canonical output agent-neutral, offline, and independent of a proprietary UI.
 9. Write report prose in the predominant language of the current conversation unless the user explicitly requests another language.
