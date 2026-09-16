@@ -391,6 +391,13 @@ def _scaffold_units(inventory: dict[str, Any]) -> list[dict[str, Any]]:
                     "before": "<describe the previous behavior>",
                     "after": "<describe the new behavior>",
                     "background": "<include only decision-relevant context>",
+                    "baseline": {
+                        "architecture": "<explain where the original behavior sits in the system>",
+                        "responsibilities": [],
+                        "flow_steps": [],
+                        "data_and_state": [],
+                        "context_refs": [],
+                    },
                     "mechanism_steps": [],
                     "evidence": [_evidence_spec(item) for item in items],
                 }
@@ -640,6 +647,7 @@ def _resolve_refs(refs: Any, local: dict[str, str], global_refs: dict[str, str],
 def _completeness(unit: dict[str, Any]) -> dict[str, str]:
     support = unit["lane"] == "supporting" or unit["importance"] == "context"
     mapping = {
+        "baseline": "baseline",
         "contract": "contract",
         "entry_points": "entry_points",
         "call_path": "call_path",
@@ -656,6 +664,16 @@ def _completeness(unit: dict[str, Any]) -> dict[str, str]:
     for output_key, field in mapping.items():
         if output_key in overrides:
             result[output_key] = overrides[output_key]
+        elif output_key == "baseline":
+            baseline = unit.get("baseline", {})
+            complete = (
+                baseline.get("architecture")
+                and baseline.get("responsibilities")
+                and baseline.get("flow_steps")
+                and baseline.get("data_and_state")
+                and baseline.get("context_refs")
+            )
+            result[output_key] = "complete" if complete else ("not_applicable" if support else "unknown")
         elif unit.get(field):
             result[output_key] = "complete"
         else:
@@ -750,6 +768,12 @@ def _expand_draft(draft: dict[str, Any], inventory: dict[str, Any]) -> dict[str,
                 "evidence": evidence_specs,
             }
         )
+        baseline = item.get("baseline", {})
+        if baseline:
+            baseline["context_refs"] = _resolve_refs(
+                baseline.get("context_refs", []), {}, global_refs, f"{key}.baseline.context_refs"
+            )
+        item["baseline"] = baseline
         item["depends_on"] = [unit_keys.get(value, value) for value in item.get("depends_on", [])]
         local_refs: dict[str, str] = {}
         claims = []

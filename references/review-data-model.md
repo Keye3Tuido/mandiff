@@ -17,13 +17,13 @@ Keep provenance explicit. A source supports only the kind of conclusion it can e
 | Change description | `M01` | What an author reported | Correctness or runtime behavior |
 | Requirement | `RQ01` | Requested outcome | That the implementation satisfies it |
 
-Record context sources at the top level with `id`, `kind`, `snapshot`, `revision`, `path`, `locator`, `summary`, and `fingerprint`; `excerpt` is optional. Every changed-evidence anchor carries its source artifact, typed kind, provenance, paths, ordinal, hunk span or typed-entry metadata, label, summary, and fingerprint. Human-facing renderers must show the ID with its location and meaning; the ID alone exists only for stable cross-reference. Context remains separate from changed-hunk coverage.
+Record context sources at the top level with `id`, `kind`, `snapshot`, `revision`, `path`, `locator`, `summary`, and `fingerprint`; `excerpt` is required when a main-unit baseline cites the source. Every changed-evidence anchor carries its source artifact, typed kind, provenance, paths, ordinal, hunk span or typed-entry metadata, label, summary, and fingerprint. Human-facing renderers must show the ID with its location and meaning; the ID alone exists only for stable cross-reference. Context remains separate from changed-hunk coverage.
 
 ## Report
 
 ```json
 {
-  "schema_version": "1.3",
+  "schema_version": "1.4",
   "report": {
     "id": "stable-report-id",
     "repository": "repository identity",
@@ -91,6 +91,7 @@ Every unit keeps the same stable field names. A `critical` or `normal` main-path
 - Decision frame: one `question` and one falsifiable `contract`.
 - Decision output: one `conclusion` with status, statement, and evidence references.
 - State delta: symmetrical `before` and `after` statements.
+- Pre-change baseline: `architecture`, `responsibilities`, ordered `flow_steps`, `data_and_state`, and `context_refs`. Main critical/normal units require frozen excerpts from the selector's pre-change side.
 - Execution: `entry_points`, `call_path`, and 3-7 `mechanism_steps` for main critical/normal units; at least one mechanism step for every other unit.
 - Constraints: `invariants`, `consumers`, and `compatibility`.
 - Evidence: author `depends_on`, `symbols`, and the declarative evidence `id`/`label`/`summary`; let the compiler derive `files`, `evidence_ids`, exact `diff`, ordered `diff_segments`, and stable `anchors`. Segments locate bytes but do not define completeness: the compiler derives the canonical display independently as each source file's exact metadata followed by the unit's complete owned hunks, then requires both the segments and `diff` to reproduce it.
@@ -192,5 +193,6 @@ Before rendering, validate both JSON shape and these cross-record rules. `script
 8. Every ledger item records the evidence kind, source, and original fingerprint. `discovered` items may retain null ownership until assigned; every later state has one matching anchor and unit with matching source, kind, fingerprint, lane, and importance. Every anchor display fingerprint must equal the SHA-256 of its byte span in the decoded display artifact; the original fingerprint must also match unless ledger state is `redacted`.
 9. Summary and coverage counters are derived from files, anchors, ownership, and ledger state.
 10. Outcome references resolve to units, findings, claims, changed/context/reported evidence, or verification records.
+11. Every schema 1.4 main critical/normal unit has a complete baseline; its context references resolve only to frozen context excerpts from a valid pre-change snapshot, and each excerpt matches its fingerprint.
 
 The renderer must refuse invalid reports before creating output. A visually complete page is not evidence that its model is coherent.

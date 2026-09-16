@@ -44,7 +44,9 @@ class ReviewCompilerTests(unittest.TestCase):
             )
             self.assertEqual(compile_result.returncode, 0, compile_result.stderr)
             report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(report["schema_version"], "1.4")
             self.assertEqual(report["units"][0]["title"], "更新存储值")
+            self.assertEqual(report["units"][0]["baseline"]["context_refs"], ["C01"])
             self.assertEqual(report["units"][0]["diff"], (FIXTURES / "pipeline.diff").read_text())
             self.assertEqual(report["coverage"]["validated"], 1)
 
@@ -77,6 +79,11 @@ class ReviewCompilerTests(unittest.TestCase):
             self.assertIn("更新存储值", markdown_text)
             self.assertIn("```diff", markdown_text)
             self.assertIn('<a id="evidence-f01-h01"></a>', markdown_text)
+            self.assertLess(
+                markdown_text.index("### Original logic before this change"),
+                markdown_text.index("### Exact diff"),
+            )
+            self.assertIn("Reads the value at startup.", markdown_text)
             self.assertIn(
                 "[`F01-H01`](#evidence-f01-h01) · src/example.txt:1 · "
                 "Replaces the stored literal from old to new.",

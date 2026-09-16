@@ -5,7 +5,7 @@
   "type": "object",
   "required": ["schema_version", "report", "source_artifacts", "summary", "outcome", "context_sources", "requirements", "files", "units", "evidence_ledger", "findings", "verification", "coverage"],
   "properties": {
-    "schema_version": { "const": "1.3" },
+    "schema_version": { "enum": ["1.3", "1.4"] },
     "report": {
       "type": "object",
       "required": ["id", "repository", "selector", "source_artifact_ids", "diff_digest", "diff_bytes", "mutable", "drift", "scope_exclusions"],
@@ -231,6 +231,18 @@
       },
       "additionalProperties": false
     },
+    "baseline": {
+      "type": "object",
+      "required": ["architecture", "responsibilities", "flow_steps", "data_and_state", "context_refs"],
+      "properties": {
+        "architecture": { "type": "string", "minLength": 1 },
+        "responsibilities": { "$ref": "#/$defs/unique_strings" },
+        "flow_steps": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "data_and_state": { "$ref": "#/$defs/unique_strings" },
+        "context_refs": { "$ref": "#/$defs/unique_strings" }
+      },
+      "additionalProperties": false
+    },
     "completeness": {
       "type": "object",
       "required": ["contract", "entry_points", "call_path", "mechanism", "invariants", "consumers", "compatibility", "failure_modes", "checks", "unknowns"],
@@ -260,6 +272,7 @@
         "before": { "type": "string", "minLength": 1 },
         "after": { "type": "string", "minLength": 1 },
         "background": { "type": "string", "minLength": 1 },
+        "baseline": { "$ref": "#/$defs/baseline" },
         "entry_points": { "$ref": "#/$defs/unique_strings" },
         "call_path": { "type": "array", "items": { "type": "string" } },
         "mechanism_steps": { "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 7 },

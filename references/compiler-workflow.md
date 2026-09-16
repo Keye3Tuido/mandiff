@@ -34,7 +34,27 @@ Use `--output` only for an explicitly requested location. Otherwise the portable
 
 For a provider-frozen patch, use `--provenance pull_request --selector-label ... --base ... --head ...`. `prepare` does not fetch provider data; the host adapter supplies the already frozen patch.
 
-### 2. Edit semantic data once
+### 2. Establish the pre-change baseline
+
+Before explaining any changed line, identify each main unit's original behavior from frozen source on the selector's pre-change side:
+
+- commit or range: `base`;
+- staged changes: `head` at `HEAD`;
+- unstaged changes: `index` at `INDEX`;
+- pull-request or standalone patch: a frozen `provider`, `base`, or `patch` excerpt that represents the pre-change side.
+
+For each main unit, capture only the definitions, direct callers and callees, state owners, contracts, and relevant tests needed to explain:
+
+1. where the behavior sits in the architecture;
+2. what each relevant component is responsible for;
+3. how control and data flowed before the change;
+4. what data or state governed the result.
+
+Write these facts into `baseline.architecture`, `baseline.responsibilities`, `baseline.flow_steps`, `baseline.data_and_state`, and `baseline.context_refs`. Every main `critical` or `normal` baseline requires at least one responsibility, three flow steps, one data/state statement, and one frozen context excerpt. If this cannot be established, stop the unit as missing context and expand scope. Do not use changed working-tree code or inferred intent as proof of the original flow.
+
+If one unit contains both staged and unstaged evidence, freeze both required predecessors: `HEAD` for the staged portion and `INDEX` for the unstaged portion. If those predecessors describe materially different behavior, split the unit instead of presenting one ambiguous baseline.
+
+### 3. Edit semantic data once
 
 Read `inventory.json`, `context-candidates.json`, and each selected hunk. Correct the proposed groups and edit only `analysis-draft.json`.
 
@@ -44,6 +64,7 @@ The draft uses `schema_version: "2.0"` and semantic keys instead of final report
 
 Agent-authored content is limited to:
 
+- pre-change architecture, responsibilities, original flow, data/state ownership, and context selection;
 - review questions, contracts, before/after behavior, background, and causal mechanism;
 - lane, importance, grouping, dependencies, and relevant symbols;
 - context selection and summaries;
@@ -59,9 +80,9 @@ Do not author:
 - files, changed-line counts, exact unit diffs, segments, anchors, ownership, ledger, summary, digest, or coverage;
 - Markdown or HTML.
 
-Optional context can include an excerpt directly. To let the script acquire it, supply exact `revision`, `path`, one-based `start`, and `lines`; `finalize` freezes and fingerprints that range. `WORKTREE` and `INDEX` are accepted revision tokens. Other values resolve to exact commits.
+Context can include an excerpt directly. To let the script acquire it, supply exact `revision`, `path`, one-based `start`, and `lines`; `finalize` freezes and fingerprints that range. `INDEX` is accepted for an unstaged baseline. `WORKTREE` remains available for non-baseline context, but a main-unit baseline cannot cite it as the original behavior. Other values resolve to exact commits.
 
-### 3. Finalize
+### 4. Finalize
 
 ```sh
 python3 scripts/mandiff.py finalize <review-directory>
@@ -70,11 +91,11 @@ python3 scripts/mandiff.py finalize <review-directory>
 The command:
 
 1. reacquires every mutable source and rejects drift;
-2. freezes declared context ranges;
+2. freezes declared context ranges and validates main-unit pre-change baselines;
 3. resolves semantic keys and assigns stable final IDs;
 4. derives completeness and outcome aggregation;
 5. expands the compact draft into `analysis.json` schema 1.0;
-6. compiles and validates canonical `review.json`;
+6. compiles and validates canonical `review.json` schema 1.4;
 7. renders `review.md` and self-contained `review.html`;
 8. removes private redaction material after success.
 

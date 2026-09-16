@@ -85,6 +85,28 @@ def _bullets(items: list[Any], empty: str = "None.", format_refs=None) -> list[s
     return result
 
 
+def _baseline(unit: dict[str, Any]) -> dict[str, Any]:
+    if unit.get("baseline"):
+        return unit["baseline"]
+    contextual_refs = []
+    for claim in unit.get("claims", []):
+        contextual_refs.extend(ref for ref in claim.get("evidence_refs", []) if ref.startswith("C"))
+    return {
+        "architecture": unit.get("background", "Unknown"),
+        "responsibilities": unit.get("consumers", []),
+        "flow_steps": unit.get("call_path", []) or unit.get("mechanism_steps", []),
+        "data_and_state": [item.get("statement", "") for item in unit.get("invariants", [])],
+        "context_refs": list(dict.fromkeys(contextual_refs)),
+    }
+
+
+def _fenced(value: str) -> list[str]:
+    fence = "```"
+    while fence in value:
+        fence += "`"
+    return [fence, value.rstrip("\n"), fence]
+
+
 def render_markdown(report: dict[str, Any]) -> str:
     errors = validate_report(report)
     if errors:
@@ -218,12 +240,53 @@ def render_markdown(report: dict[str, Any]) -> str:
     for finding in report["findings"]:
         findings_by_unit.setdefault(finding["unit_id"], []).append(finding)
     total_units = len(report["units"])
+    context_by_id = {item["id"]: item for item in report["context_sources"]}
     for unit in report["units"]:
+        baseline = _baseline(unit)
         lines.extend(
             [
                 "",
                 f"## Step {unit['order']}/{total_units}: {unit['title']}",
                 "",
+                "### Original logic before this change",
+                "",
+                f"**Architecture:** {baseline['architecture']}",
+                "",
+                "**Responsibilities:**",
+                "",
+                *_bullets(baseline.get("responsibilities", [])),
+                "",
+                "**Original flow:**",
+                "",
+                *[
+                    f"{index}. {step}"
+                    for index, step in enumerate(baseline.get("flow_steps", []), start=1)
+                ],
+                "",
+                "**Data and state:**",
+                "",
+                *_bullets(baseline.get("data_and_state", [])),
+                "",
+                f"**Frozen context:** {format_refs(baseline.get('context_refs', []))}",
+                "",
+            ]
+        )
+        for context_id in baseline.get("context_refs", []):
+            source = context_by_id.get(context_id)
+            if not source or not source.get("excerpt"):
+                continue
+            lines.extend(
+                [
+                    f"#### {_reference(context_id, reference_catalog, changed_evidence)}",
+                    "",
+                    f"Snapshot: `{source['snapshot']}` at `{source['revision']}`",
+                    "",
+                    *_fenced(source["excerpt"]),
+                    "",
+                ]
+            )
+        lines.extend(
+            [
                 f"**Review question:** {unit['question']}",
                 "",
                 f"**Behavior contract:** {unit['contract']}",

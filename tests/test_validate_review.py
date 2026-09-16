@@ -23,8 +23,52 @@ class ReviewValidationTests(unittest.TestCase):
     def setUp(self):
         self.report = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
+    def make_version_14(self):
+        report = copy.deepcopy(self.report)
+        report["schema_version"] = "1.4"
+        context = report["context_sources"][0]
+        context["snapshot"] = "base"
+        context["revision"] = report["report"]["base"]
+        context["fingerprint"] = hashlib.sha256(context["excerpt"].encode()).hexdigest()
+        report["units"][0]["baseline"] = {
+            "architecture": "The startup reader sits between startup and the persisted value file.",
+            "responsibilities": ["read_value reads the persisted value for startup."],
+            "flow_steps": [
+                "Startup calls read_value.",
+                "read_value reads src/example.txt.",
+                "read_value returns the stored value to startup.",
+            ],
+            "data_and_state": ["src/example.txt owns the persisted value."],
+            "context_refs": ["C01"],
+        }
+        report["units"][0]["completeness"]["baseline"] = "complete"
+        return report
+
     def test_valid_fixture(self):
         self.assertEqual(validate_report(self.report), [])
+
+    def test_version_14_requires_a_pre_change_baseline(self):
+        report = self.make_version_14()
+        del report["units"][0]["baseline"]
+        self.assertTrue(any("original-logic context" in error for error in validate_report(report)))
+
+    def test_version_14_rejects_changed_evidence_as_baseline_context(self):
+        report = self.make_version_14()
+        report["units"][0]["baseline"]["context_refs"] = ["F01-H01"]
+        self.assertTrue(any("baseline.context_refs" in error for error in validate_report(report)))
+
+    def test_version_14_rejects_post_change_context_snapshot(self):
+        report = self.make_version_14()
+        report["context_sources"][0]["snapshot"] = "head"
+        self.assertTrue(any("not a pre-change snapshot" in error for error in validate_report(report)))
+
+    def test_version_14_requires_each_mutable_predecessor(self):
+        report = self.make_version_14()
+        report["source_artifacts"][0]["provenance"] = "unstaged"
+        report["units"][0]["anchors"][0]["provenance"] = "unstaged"
+        report["context_sources"][0]["snapshot"] = "head"
+        errors = validate_report(report)
+        self.assertTrue(any("requires pre-change context for unstaged evidence" in error for error in errors))
 
     def test_missing_core_output_is_rejected(self):
         del self.report["outcome"]
@@ -263,6 +307,7 @@ class ReviewValidationTests(unittest.TestCase):
         self.assertIn("grid-template-columns: 280px minmax(0, 1fr)", template)
         self.assertIn('class="diff-panel"', template)
         self.assertIn('class="review-panel"', template)
+        self.assertLess(template.index('class="baseline-panel"'), template.index('class="diff-panel"'))
         self.assertLess(template.index('class="diff-panel"'), template.index('class="review-panel"'))
         self.assertIn("max-height: min(72vh, 920px)", template)
         self.assertIn('data-line="${index + 1}"', template)

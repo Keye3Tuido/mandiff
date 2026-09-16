@@ -78,6 +78,18 @@ Identify the highest-risk units and explain the failure mode each could introduc
 
 ## 6. Step `<n>/<total>`: `<review unit title>`
 
+### Original logic before this change
+
+This section must appear before the review question, before/after summary, and exact diff. Explain the minimum complete pre-change model:
+
+- **Architecture:** where this behavior sits and which boundary it crosses.
+- **Responsibilities:** what each relevant component does; do not list names without duties.
+- **Original flow:** the trigger, direct calls or reads/writes, state transition, and returned or visible result in order.
+- **Data and state:** who owns the relevant data, where it is read or written, and which conditions govern the result.
+- **Frozen context:** cite and show the exact pre-change excerpts that establish the explanation.
+
+For main `critical` or `normal` units, never substitute the changed hunk, commit message, or inferred intent for pre-change source. If the original flow cannot be established, classify it as missing context and recommend expanding scope before presenting the diff as reviewable.
+
 ### Goal
 
 Explain what behavior this unit changes and why it exists.
@@ -88,7 +100,7 @@ State the concrete input/state, operation, and externally observable result. Cit
 
 ### Background and prerequisites
 
-Provide the minimum lifecycle, invariant, data-model, framework, or compatibility knowledge required to audit the change.
+Provide only additional lifecycle, invariant, framework, or compatibility knowledge not already covered by the original-logic section.
 
 ### Entry point and call path
 

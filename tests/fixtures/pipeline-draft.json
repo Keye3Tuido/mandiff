@@ -9,7 +9,7 @@
     {
       "key": "reader",
       "kind": "caller",
-      "snapshot": "head",
+      "snapshot": "patch",
       "revision": "1111111111111111111111111111111111111111",
       "path": "src/reader.txt",
       "locator": "read_value",
@@ -40,6 +40,22 @@
       "before": "The stored literal is old.",
       "after": "The stored literal is new.",
       "background": "The value is read once at startup.",
+      "baseline": {
+        "architecture": "The startup reader sits between application startup and the persisted value file.",
+        "responsibilities": [
+          "startup decides when to load the value.",
+          "read_value reads the value from src/example.txt and returns it to startup."
+        ],
+        "flow_steps": [
+          "Application startup calls read_value.",
+          "read_value opens src/example.txt and reads its one-line value.",
+          "read_value returns that value to the startup caller."
+        ],
+        "data_and_state": [
+          "src/example.txt owns the persisted value; the reader does not change its format."
+        ],
+        "context_refs": ["reader"]
+      },
       "entry_points": ["read_value"],
       "call_path": ["startup", "read_value", "src/example.txt"],
       "mechanism_steps": [

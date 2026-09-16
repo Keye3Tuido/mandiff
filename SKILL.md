@@ -1,6 +1,6 @@
 ---
 name: mandiff
-description: Create a portable, evidence-complete review guide for a selected Git diff, commit, range, patch, or pull request. Use when a user needs a large or cross-cutting change explained by behavior, checked for evidence coverage and risks, or prepared for manual audit. Preserve exact evidence, freeze the reviewed inputs, and keep the reviewed source read-only.
+description: Create a portable, evidence-complete review guide for a selected Git diff, commit, range, patch, or pull request. Explain the pre-change architecture, responsibilities, and flow before presenting the diff. Use when a user needs a large or cross-cutting change explained by behavior, checked for evidence coverage and risks, or prepared for manual audit. Preserve exact evidence, freeze the reviewed inputs, and keep the reviewed source read-only.
 ---
 
 # ManDiff
@@ -14,12 +14,13 @@ Turn one selected change set into a decision-grade tutorial for human review. Pr
 3. Account for every selected evidence item exactly once; never hide a remainder bucket.
 4. Separate observed facts, frozen context, reported intent, inference, and unknowns.
 5. Keep the complete exact diff beside each review unit. Evidence coverage is not human approval.
-6. Never show a bare evidence ID in human-facing output. Render every reference as the stable ID plus its file and line when available, a plain-language statement of what it proves, and a direct jump to the owning unit and exact diff in interactive output.
-7. Produce confirmed behavior, defects, unproven behavior, and a recommended disposition.
-8. Keep the canonical output agent-neutral, offline, and independent of a proprietary UI.
-9. Write report prose in the predominant language of the current conversation unless the user explicitly requests another language.
-10. Write human-facing descriptions in plain, precise, direct, and unambiguous language. Prefer concrete words and short sentences. Use technical terms only when necessary; explain a term at first use, never invent terminology, and state uncertainty plainly when the evidence is insufficient.
-11. Use the bundled workflow script. Never create build, encoding, hashing, diff, or rendering helpers.
+6. Before showing or explaining a diff, establish how the affected behavior worked before the change: where it sits, what each relevant component does, the original execution and data flow, and the state or data it owns. Cite frozen pre-change context for this explanation.
+7. Never show a bare evidence ID in human-facing output. Render every reference as the stable ID plus its file and line when available, a plain-language statement of what it proves, and a direct jump to the owning unit and exact diff in interactive output.
+8. Produce confirmed behavior, defects, unproven behavior, and a recommended disposition.
+9. Keep the canonical output agent-neutral, offline, and independent of a proprietary UI.
+10. Write report prose in the predominant language of the current conversation unless the user explicitly requests another language.
+11. Write human-facing descriptions in plain, precise, direct, and unambiguous language. Prefer concrete words and short sentences. Use technical terms only when necessary; explain a term at first use, never invent terminology, and state uncertainty plainly when the evidence is insufficient.
+12. Use the bundled workflow script. Never create build, encoding, hashing, diff, or rendering helpers.
 
 ## Default workflow
 
@@ -67,6 +68,8 @@ The prepared directory contains:
 
 Read the inventory and each frozen hunk once. Treat proposed units and lane classifications as scaffolding, not conclusions. Group by behavior and dependency rather than filename. Keep contracts and core behavior before integration, user-facing effects, tests, and mechanical consequences.
 
+Before analyzing what changed, build the pre-change baseline for each main unit. Read the minimum frozen definitions, direct callers and callees, state owners, and contracts needed to answer four questions: where this behavior sits, what the relevant parts are responsible for, how control and data moved before the change, and which data or state governed the result. Use the selector's pre-change side, not the changed worktree. If the available source cannot establish the baseline, mark the unit as missing context and expand scope; do not compensate with assumptions.
+
 Before editing, determine the report language from the conversation as a whole, not from the language of source code, commit messages, or the bundled example. An explicit user language request wins. Use that language consistently for every human-facing semantic field, including titles, questions, contracts, conclusions, evidence labels and summaries, context summaries, findings, checks, verification, and the final recommendation. Write these fields so a person can understand them without decoding agent jargon: prefer concrete subjects, actions, conditions, and results; use a technical term only when it adds precision; explain it at first use; and do not create names for concepts that the source does not name. If the evidence does not establish a point, say that it is unknown or unverified instead of implying certainty. Preserve source quotations, code, identifiers, paths, commands, and model enum values exactly when translation would change their meaning. Rewrite scaffold text that is in another language; do not produce a mixed-language report merely because the example or diff uses English.
 
 Use:
@@ -85,11 +88,12 @@ For every unit, provide:
 - `key`, semantic `title`, `lane`, and `importance`;
 - one `question` and falsifiable `contract`;
 - symmetrical `before` and `after` behavior;
+- a `baseline` with `architecture`, `responsibilities`, `flow_steps`, `data_and_state`, and `context_refs`;
 - concise `background` and causal `mechanism_steps`;
 - one `conclusion` with status and statement;
 - exact selected `evidence` IDs, rewriting their labels and summaries in the report language when needed.
 
-For each `critical` or `normal` main unit, also provide entry points, direct call/data path, invariants, consumers, compatibility, atomic claims, concrete failure modes, explicit unknowns, and executable checks. Main units normally need 3-7 mechanism steps, 1-4 claims, and 1-3 checks.
+For each `critical` or `normal` main unit, the baseline must have at least one responsibility, three original-flow steps, one data/state statement, and one frozen pre-change context reference. Also provide entry points, direct call/data path, invariants, consumers, compatibility, atomic claims, concrete failure modes, explicit unknowns, and executable checks. Main units normally need 3-7 mechanism steps, 1-4 claims, and 1-3 checks.
 
 For supporting or `context` units, omit irrelevant collections. One causal mechanism step is enough for a purely mechanical consequence. `finalize` derives honest `not_applicable` completeness states instead of requiring filler.
 
@@ -108,7 +112,7 @@ Observed claims default to the owning unit's changed evidence when `evidence_ref
 
 Use `tests/fixtures/pipeline-draft.json` as the complete generic compact example. Read [references/review-data-model.md](references/review-data-model.md) only when that example is insufficient or validation fails.
 
-## Add frozen context
+## Add frozen pre-change context
 
 Context selection remains semantic; acquisition is mechanical. A context source may contain a direct `excerpt`, or declare:
 
@@ -116,8 +120,8 @@ Context selection remains semantic; acquisition is mechanical. A context source 
 {
   "key": "reader",
   "kind": "caller",
-  "snapshot": "head",
-  "revision": "<exact-commit-or-HEAD-INDEX-WORKTREE>",
+  "snapshot": "base",
+  "revision": "<exact-pre-change-commit-or-HEAD-INDEX>",
   "path": "src/reader.ext",
   "start": 20,
   "lines": 30,
@@ -126,7 +130,7 @@ Context selection remains semantic; acquisition is mechanical. A context source 
 }
 ```
 
-`finalize` reads the exact snapshot, resolves commit refs, slices the declared lines, and fingerprints the excerpt. Add only changed definitions/contracts, direct callers or consumers, nearest relevant tests, and affected persistence/configuration/compatibility rules. Stop when the claim is decidable; record an unknown instead of touring adjacent architecture.
+`finalize` reads the exact snapshot, resolves commit refs, slices the declared lines, and fingerprints the excerpt. For a commit or range use `base`; for staged changes use `head` at `HEAD`; for unstaged changes use `index` at `INDEX`; for provider-frozen or standalone patches use `provider`, `base`, or `patch` as appropriate. A main-unit baseline may not cite the changed working tree as its original logic. Add only definitions, direct callers or callees, state owners, contracts, and tests needed to make the original behavior understandable. Stop when the original flow and review decision are both clear; record missing context instead of touring adjacent architecture.
 
 Commit messages, pull-request descriptions, issues, and requirements establish reported intent only. They never prove runtime behavior.
 
@@ -150,7 +154,7 @@ Read [references/evidence-protocol.md](references/evidence-protocol.md) only for
 
 Before finalizing, do one semantic precision pass without rereading every hunk: remove title/diff restatements, unsupported intent verbs, generic risks, vague checks, extrapolation beyond frozen evidence, and human-facing prose left in a different language. Report defect, risk, design question, and missing context separately.
 
-Completion requires `finalize` to succeed with every evidence item assigned and byte-validated once, zero missing/duplicate/unknown changed evidence, resolved semantic references, valid main-path completeness, and explicit limitations or tests not run.
+Completion requires `finalize` to succeed with every main unit backed by a complete pre-change baseline, every evidence item assigned and byte-validated once, zero missing/duplicate/unknown changed evidence, resolved semantic references, valid main-path completeness, and explicit limitations or tests not run.
 
 For oversized output, keep one prepared inventory and split only at unit boundaries; never truncate evidence. For host-specific delivery or text-only fallback, read [references/agent-portability.md](references/agent-portability.md). Read visual or Markdown format references only when changing a renderer.
 

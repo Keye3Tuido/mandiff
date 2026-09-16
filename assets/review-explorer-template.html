@@ -90,6 +90,12 @@
     .badges { display: flex; gap: 6px; flex-wrap: wrap; }
     .badge { display: inline-flex; align-items: center; width: fit-content; min-height: 24px; background: var(--soft); border-radius: 999px; padding: 3px 8px; font-size: 12px; }
     .question { border-left: 3px solid var(--focus); padding-left: 12px; display: grid; gap: 3px; }
+    .baseline-panel { display: grid; gap: 14px; border-block: 1px solid var(--line); padding-block: 14px; }
+    .baseline-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .baseline-grid > div, .baseline-block { min-width: 0; display: grid; gap: 5px; }
+    .baseline-contexts { display: grid; gap: 12px; }
+    .baseline-context { display: grid; gap: 6px; }
+    .baseline-context pre { max-height: 320px; padding: 10px 12px; font-size: 12px; line-height: 1.5; }
     .unit-conclusion { padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
     .before-after { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; border-block: 1px solid var(--line); padding-block: 14px; }
     .before-after > div { display: grid; gap: 4px; }
@@ -176,7 +182,7 @@
       .shell { padding-inline: 12px; gap: 16px; }
       .topbar { position: static; }
       .scope { max-width: 100%; }
-      .outcome-grid, .facts, .analysis-grid, .before-after { grid-template-columns: 1fr; }
+      .outcome-grid, .facts, .analysis-grid, .baseline-grid, .before-after { grid-template-columns: 1fr; }
       .outcome-grid > div { padding: 10px 0; }
       .outcome-grid > div + div { border-left: 0; border-top: 1px solid var(--line); }
       .before-after > span { text-align: center; transform: rotate(90deg); }
@@ -221,6 +227,16 @@
 
       <article id="detail" class="detail" aria-live="polite">
         <header class="detail-head"><div><div id="unit-order" class="small muted"></div><h2 id="unit-title"></h2></div><div id="unit-badges" class="badges"></div></header>
+        <section class="baseline-panel" aria-labelledby="baseline-title">
+          <div class="section-head"><h3 id="baseline-title">Original logic before this change</h3><span class="small muted">Read this before the diff</span></div>
+          <div class="baseline-block"><span class="small muted">Architecture</span><p id="baseline-architecture"></p></div>
+          <div class="baseline-grid">
+            <div><span class="small muted">Responsibilities</span><ul id="baseline-responsibilities" class="compact-list"></ul></div>
+            <div><span class="small muted">Data and state</span><ul id="baseline-data-state" class="compact-list"></ul></div>
+          </div>
+          <div class="baseline-block"><span class="small muted">Original flow</span><ol id="baseline-flow" class="compact-list"></ol></div>
+          <div class="baseline-block"><span class="small muted">Frozen pre-change context</span><div id="baseline-contexts" class="baseline-contexts"></div></div>
+        </section>
         <div class="question"><span class="small muted">Review question</span><strong id="unit-question"></strong></div>
         <div class="unit-conclusion"><span id="unit-conclusion-status" class="badge"></span><strong id="unit-conclusion"></strong></div>
         <div class="before-after"><div><span class="small muted">Before</span><p id="unit-before"></p></div><span aria-hidden="true">→</span><div><span class="small muted">After</span><p id="unit-after"></p></div></div>
@@ -290,6 +306,7 @@
     (() => {
       const model = JSON.parse(document.getElementById('mandiff-data').textContent);
       const units = Array.isArray(model.units) ? model.units : [];
+      const contextById = new Map((model.context_sources || []).map(source => [source.id, source]));
       const report = model.report || {};
       const summary = model.summary || {};
       const outcome = model.outcome || { confirmed: [], defects: [], unproven: [], recommendation: {} };
@@ -518,6 +535,17 @@
         return knownSymbolHtml(part, symbols, language);
       }).join('');
       const codeItemsHtml = (items, language, className = '') => (items || []).map(item => `<code class="code-chip ${className}">${syntaxHighlight(String(item ?? ''), language, '')}</code>`).join('') || '<span class="small muted">None</span>';
+      const baselineFor = unit => {
+        if (unit.baseline) return unit.baseline;
+        const refs = (unit.claims || []).flatMap(claim => (claim.evidence_refs || []).filter(ref => ref.startsWith('C')));
+        return {
+          architecture: unit.background || 'Unknown',
+          responsibilities: unit.consumers || [],
+          flow_steps: unit.call_path?.length ? unit.call_path : (unit.mechanism_steps || []),
+          data_and_state: (unit.invariants || []).map(item => item.statement),
+          context_refs: [...new Set(refs)]
+        };
+      };
 
       const LONG_LINE_LIMIT = 2000;
       const longLinePreview = (line, query) => {
@@ -584,8 +612,20 @@
         const unit = units[selected]; const unitState = state[unit.id]; const findings = (unit.finding_ids || []).map(findingById).filter(Boolean);
         const unitLanguage = (unit.files || []).map(languageForPath).find(Boolean) || null;
         const unitSymbols = [...(unit.symbols || []), ...(unit.entry_points || []), ...(unit.call_path || [])];
+        const baseline = baselineFor(unit);
         renderList(); renderDiff();
         byId('unit-order').textContent = `Step ${unit.order}/${units.length}`; byId('unit-title').innerHTML = narrativeHtml(unit.title, unitSymbols, unitLanguage); byId('unit-question').innerHTML = narrativeHtml(unit.question, unitSymbols, unitLanguage);
+        byId('baseline-architecture').innerHTML = narrativeHtml(baseline.architecture || 'Unknown', unitSymbols, unitLanguage);
+        byId('baseline-responsibilities').innerHTML = (baseline.responsibilities || []).map(item => `<li>${narrativeHtml(item, unitSymbols, unitLanguage)}</li>`).join('') || '<li>Unknown</li>';
+        byId('baseline-flow').innerHTML = (baseline.flow_steps || []).map(item => `<li>${narrativeHtml(item, unitSymbols, unitLanguage)}</li>`).join('') || '<li>Unknown</li>';
+        byId('baseline-data-state').innerHTML = (baseline.data_and_state || []).map(item => `<li>${narrativeHtml(item, unitSymbols, unitLanguage)}</li>`).join('') || '<li>Unknown</li>';
+        byId('baseline-contexts').innerHTML = (baseline.context_refs || []).map(id => {
+          const source = contextById.get(id);
+          if (!source) return `<div class="baseline-context">${evidenceRef(id)}</div>`;
+          const language = languageForPath(source.path);
+          const excerpt = source.excerpt ? `<pre><code>${syntaxHighlight(source.excerpt, language, '')}</code></pre>` : '<span class="small muted">Frozen excerpt unavailable.</span>';
+          return `<div class="baseline-context"><div>${evidenceRef(id)}</div><span class="small muted">${escapeHtml(source.snapshot)} at ${escapeHtml(source.revision)}</span>${excerpt}</div>`;
+        }).join('') || '<span class="small muted">No frozen pre-change context.</span>';
         byId('unit-conclusion-status').textContent = unit.conclusion?.status || 'unproven'; byId('unit-conclusion').innerHTML = narrativeHtml(unit.conclusion?.statement || 'No unit conclusion provided.', unitSymbols, unitLanguage);
         byId('unit-before').innerHTML = narrativeHtml(unit.before, unitSymbols, unitLanguage); byId('unit-after').innerHTML = narrativeHtml(unit.after, unitSymbols, unitLanguage);
         byId('unit-badges').innerHTML = `<span class="badge">${escapeHtml(unit.lane)}</span><span class="badge">${escapeHtml(unit.importance)}</span><span class="badge">${unit.changed_lines || 0} changed lines</span>`;

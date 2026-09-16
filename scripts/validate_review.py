@@ -279,6 +279,51 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
         _check_refs(unit.get("files", []), {item.get("path") for item in files_list}, f"{unit_id}.files", errors)
         _check_refs(unit.get("finding_ids", []), set(findings), f"{unit_id}.finding_ids", errors)
         _check_refs(unit.get("verification_ids", []), set(verifications), f"{unit_id}.verification_ids", errors)
+        baseline = unit.get("baseline", {})
+        _check_refs(baseline.get("context_refs", []), context_ids, f"{unit_id}.baseline.context_refs", errors)
+        if report.get("schema_version") == "1.4" and baseline:
+            allowed_snapshots: set[str] = set()
+            required_snapshot_groups: list[tuple[str, set[str]]] = []
+            snapshot_by_provenance = {
+                "commit": {"base"},
+                "commit_range": {"base"},
+                "staged": {"head"},
+                "unstaged": {"index"},
+                "pull_request": {"base", "provider"},
+                "patch": {"base", "patch"},
+            }
+            provenances = list(dict.fromkeys(anchor.get("provenance") for anchor in unit.get("anchors", [])))
+            for provenance in provenances:
+                snapshots = snapshot_by_provenance.get(provenance, set())
+                allowed_snapshots.update(snapshots)
+                if snapshots:
+                    required_snapshot_groups.append((provenance, snapshots))
+            baseline_sources = [
+                contexts[context_id]
+                for context_id in baseline.get("context_refs", [])
+                if context_id in contexts
+            ]
+            for context_id in baseline.get("context_refs", []):
+                source = contexts.get(context_id)
+                if not source:
+                    continue
+                if source.get("snapshot") not in allowed_snapshots:
+                    errors.append(
+                        f"{unit_id}.baseline.context_refs: {context_id} snapshot "
+                        f"{source.get('snapshot')!r} is not a pre-change snapshot for this unit"
+                    )
+                excerpt = source.get("excerpt")
+                if not isinstance(excerpt, str) or not excerpt:
+                    errors.append(f"{unit_id}.baseline.context_refs: {context_id} requires a frozen excerpt")
+                else:
+                    expected = hashlib.sha256(excerpt.encode("utf-8")).hexdigest()
+                    if source.get("fingerprint") != expected:
+                        errors.append(f"{unit_id}.baseline.context_refs: {context_id} fingerprint expected {expected}")
+            for provenance, snapshots in required_snapshot_groups:
+                if not any(source.get("snapshot") in snapshots for source in baseline_sources):
+                    errors.append(
+                        f"{unit_id}.baseline.context_refs: requires pre-change context for {provenance} evidence"
+                    )
 
         unit_segments: list[tuple[str, int, int]] = []
         displayed_chunks: list[bytes] = []
@@ -410,6 +455,20 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
             _check_refs(check.get("claim_ids", []), local_claims, f"{unit_id}.check[{check.get('id')}].claim_ids", errors)
 
         if unit.get("lane") == "main" and unit.get("importance") in {"critical", "normal"}:
+            if report.get("schema_version") == "1.4":
+                if not baseline:
+                    errors.append(f"{unit_id}.baseline: main critical/normal units require original-logic context")
+                else:
+                    if unit.get("completeness", {}).get("baseline") != "complete":
+                        errors.append(f"{unit_id}.completeness.baseline: must be 'complete'")
+                    if not baseline.get("responsibilities"):
+                        errors.append(f"{unit_id}.baseline.responsibilities: requires at least one item")
+                    if len(baseline.get("flow_steps", [])) < 3:
+                        errors.append(f"{unit_id}.baseline.flow_steps: requires at least 3 original-flow steps")
+                    if not baseline.get("data_and_state"):
+                        errors.append(f"{unit_id}.baseline.data_and_state: requires at least one item")
+                    if not baseline.get("context_refs"):
+                        errors.append(f"{unit_id}.baseline.context_refs: requires frozen pre-change context")
             required_collections = (
                 "entry_points",
                 "call_path",

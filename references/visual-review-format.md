@@ -43,16 +43,18 @@ Show defects, risks, design questions, and missing context as a selectable queue
 
 When the host supports an inline interactive view, make review units selectable. The selected unit must show, in this order:
 
-1. the review question;
-2. the behavior contract and symmetrical before/after behavior;
-3. entry point, direct call path, required context, and dependencies;
-4. mechanism steps, invariants, consumers, and compatibility;
-5. claims labeled as observed, contextual, reported, inferred, or unknown, with evidence references and confidence;
-6. affected files, symbols, and evidence anchors;
-7. complete exact original diff;
-8. concrete failure modes and focused setup/action/expected checks;
-9. findings and unresolved questions;
-10. evidence-validation state and human-decision state.
+1. a visible pre-change baseline: architecture position, component responsibilities, original control/data flow, data/state ownership, and frozen context excerpts;
+2. the review question;
+3. the behavior contract and symmetrical before/after behavior;
+4. entry point, direct call path, required context, and dependencies;
+5. mechanism steps, invariants, consumers, and compatibility;
+6. claims labeled as observed, contextual, reported, inferred, or unknown, with evidence references and confidence;
+7. affected files, symbols, and evidence anchors;
+8. complete exact original diff;
+9. concrete failure modes and focused setup/action/expected checks;
+10. findings, unresolved questions, evidence-validation state, and human-decision state.
+
+Do not collapse the pre-change baseline by default. A reviewer must be able to understand the original path without opening the diff. Show the exact frozen context excerpts under the explanation so the reviewer can verify that the prose matches the original code.
 
 Every visible reference must decode the stable ID inline: show the source path and line when available, followed by a one-line statement of what that reference establishes. A bare identifier is never sufficient UI copy. In interactive output, selecting changed evidence must open its owning review unit, show the complete exact diff, and locate the referenced hunk.
 

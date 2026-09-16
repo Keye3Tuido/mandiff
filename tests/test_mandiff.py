@@ -203,7 +203,7 @@ class ManDiffWorkflowTests(unittest.TestCase):
             repo = self._git_repo(root)
             (repo / "value.txt").write_text("new\n", encoding="utf-8")
             run(["git", "commit", "-am", "change"], repo)
-            head = run(["git", "rev-parse", "HEAD"], repo)
+            base = run(["git", "rev-parse", "HEAD^"], repo)
             output = root / "review"
             args = _parser().parse_args(
                 ["prepare", "--repo", str(repo), "--commit", "HEAD", "--output", str(output)]
@@ -212,13 +212,13 @@ class ManDiffWorkflowTests(unittest.TestCase):
             draft = json.loads(PIPELINE_DRAFT.read_text(encoding="utf-8"))
             draft["context_sources"][0].pop("excerpt")
             draft["context_sources"][0].update(
-                {"revision": head, "path": "value.txt", "start": 1, "lines": 1}
+                {"snapshot": "base", "revision": base, "path": "value.txt", "start": 1, "lines": 1}
             )
             (output / "analysis-draft.json").write_text(json.dumps(draft), encoding="utf-8")
             report_path, _ = finalize(output)
             report = json.loads(report_path.read_text(encoding="utf-8"))
-            self.assertEqual(report["context_sources"][0]["revision"], head)
-            self.assertEqual(report["context_sources"][0]["excerpt"], "new\n")
+            self.assertEqual(report["context_sources"][0]["revision"], base)
+            self.assertEqual(report["context_sources"][0]["excerpt"], "old\n")
 
     def test_redaction_hides_values_and_cleans_private_material_after_finalize(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -351,7 +351,9 @@ class ManDiffWorkflowTests(unittest.TestCase):
                 ["prepare", "--repo", str(repo), "--uncommitted", "--output", str(output)]
             )
             prepare(args)
-            shutil.copyfile(PIPELINE_DRAFT, output / "analysis-draft.json")
+            draft = json.loads(PIPELINE_DRAFT.read_text(encoding="utf-8"))
+            draft["context_sources"][0].update({"snapshot": "index", "revision": "INDEX"})
+            (output / "analysis-draft.json").write_text(json.dumps(draft), encoding="utf-8")
             report_path, _ = finalize(output)
             report = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(len(report["source_artifacts"]), 2)
