@@ -10,6 +10,7 @@ from validate_review import validate_report
 
 PLACEHOLDER = '{"__replace_with_mandiff_report__":true}'
 GUIDE_SCRIPT = Path(__file__).resolve().parent.parent / "assets" / "context-guide.js"
+VIEWS_SCRIPT = GUIDE_SCRIPT.with_name("context-views.js")
 
 
 def render_html(report: dict, template: str) -> str:
@@ -20,6 +21,7 @@ def render_html(report: dict, template: str) -> str:
         raise ValueError("template must contain exactly one ManDiff data placeholder")
     embedded = json.dumps(report, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     template = template.replace("/*__MANDIFF_CONTEXT_GUIDE__*/", GUIDE_SCRIPT.read_text(encoding="utf-8"))
+    template = template.replace("/*__MANDIFF_CONTEXT_VIEWS__*/", VIEWS_SCRIPT.read_text(encoding="utf-8"))
     return template.replace(PLACEHOLDER, embedded)
 
 

@@ -1,7 +1,7 @@
 diff --git a/service.py b/service.py
 --- a/service.py
 +++ b/service.py
-@@ -4,4 +4,4 @@
+@@ -4,5 +4,5 @@
  def load(key, schedule):
 -    if key in CACHE:
 +    if key in CACHE and CACHE[key] is not None:

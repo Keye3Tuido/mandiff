@@ -59,6 +59,7 @@ class ContextGuideTests(unittest.TestCase):
             self.assertEqual(source["excerpt"], expected)
 
     def test_requires_guide_for_new_main_units_but_renders_legacy(self):
+        self.report["schema_version"] = "1.5"
         del self.unit["baseline"]["guide"]
         self.rejects("architecture and execution guide required")
         for version in ("1.3", "1.4"):
@@ -66,6 +67,24 @@ class ContextGuideTests(unittest.TestCase):
             self.assertEqual(validate_report(self.report), [])
             self.assertIn("no structured pre-change diagrams", render_markdown(self.report))
             self.assertIn("older report", render_html(self.report, TEMPLATE))
+
+    def test_selected_graphs_preserve_scenario_and_stack_evidence(self):
+        self.guide["views"] = ["structure"]
+        self.assertEqual(validate_report(self.report), [])
+        md = render_markdown(self.report)
+        self.assertEqual(md.count("```mermaid"), 1)
+        self.assertIn("调用栈依据源码推导，未实际运行", md)
+        for scenario in self.execution["scenarios"]:
+            self.assertIn(scenario["title"], md)
+        # Hiding a graph never exempts its call evidence from validation.
+        self.execution["scenarios"][0]["walkthrough"][1]["stack"] = ["load"]
+        self.rejects("silently replace the stack root")
+
+    def test_rejects_empty_unknown_and_duplicate_view_selection(self):
+        for views in ([], ["invented"], ["structure", "structure"]):
+            with self.subTest(views=views):
+                self.guide["views"] = views
+                self.assertTrue(validate_report(self.report))
 
     def test_rejects_changed_evidence_or_post_change_source_in_graph(self):
         self.guide["relations"][0]["context_refs"] = ["F01-H01"]

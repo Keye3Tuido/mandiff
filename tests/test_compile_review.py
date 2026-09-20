@@ -44,7 +44,7 @@ class ReviewCompilerTests(unittest.TestCase):
             )
             self.assertEqual(compile_result.returncode, 0, compile_result.stderr)
             report = json.loads(report_path.read_text(encoding="utf-8"))
-            self.assertEqual(report["schema_version"], "1.5")
+            self.assertEqual(report["schema_version"], "1.6")
             self.assertEqual(report["units"][0]["title"], "更新存储值")
             self.assertEqual(report["units"][0]["baseline"]["context_refs"], ["C01"])
             self.assertEqual(report["units"][0]["diff"], (FIXTURES / "pipeline.diff").read_text())

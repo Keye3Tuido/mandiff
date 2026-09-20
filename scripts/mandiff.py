@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, Optional
 
@@ -20,6 +21,7 @@ from compile_review import compile_report, create_inventory
 from context_guide import guide_records
 from render_markdown import render_markdown
 from render_review import render_html
+from validate_review import SCHEMA_PATH
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -34,6 +36,8 @@ RESERVED_FILES = {
     "review.json",
     "review.md",
     "review.html",
+    "authoring-help.json",
+    "performance.json",
 }
 PLACEHOLDERS = {
     "<state the decision this unit enables>",
@@ -43,6 +47,7 @@ PLACEHOLDERS = {
     "<describe the new behavior>",
     "<include only decision-relevant context>",
     "<state the evidence-backed review disposition>",
+    "<explain where the original behavior sits in the system>",
 }
 HUNK_LOCATOR = re.compile(r"@@[^@]*@@\s*(.*)$")
 GENERIC_PHRASES = ("verify correctness", "may break", "works as expected", "review changes")
@@ -398,11 +403,6 @@ def _scaffold_units(inventory: dict[str, Any]) -> list[dict[str, Any]]:
                         "flow_steps": [],
                         "data_and_state": [],
                         "context_refs": [],
-                        "guide": {
-                            "nodes": [],
-                            "relations": [],
-                            "execution": {"status": "unknown", "reason": "Explain the original execution or why it cannot be established."},
-                        },
                     },
                     "mechanism_steps": [],
                     "evidence": [_evidence_spec(item) for item in items],
@@ -429,12 +429,19 @@ def _context_candidates(repo: Optional[Path], evidence: list[dict[str, Any]]) ->
 
 
 def prepare(args: argparse.Namespace) -> Path:
+    started = time.perf_counter()
     repo, sources, aggregate = _capture_sources(args)
     digest_input = b"\0".join(source["raw"] for source in sources)
     report_id = hashlib.sha256(digest_input).hexdigest()[:12]
     output = args.output.resolve() if args.output else _default_output(repo, report_id)
     _require_output_outside_repo(output, repo)
-    _prepare_output(output)
+    try:
+        _prepare_output(output)
+    except PermissionError:
+        if args.output:
+            raise SystemExit(f"Cannot write requested output directory: {output}")
+        output = Path(tempfile.mkdtemp(prefix=f"mandiff-{report_id}-"))
+        _require_output_outside_repo(output, repo)
     source_dir = output / "sources"
     source_dir.mkdir(parents=True, exist_ok=True)
 
@@ -554,7 +561,45 @@ def prepare(args: argparse.Namespace) -> Path:
             "private_token": private_token,
         },
     )
+    _write_json(output / "authoring-help.json", {
+        "enums": _authoring_enums(),
+        "references": {"claim_refs": "local claim key or unit-key.claim-key", "failure_refs": "local failure key or owning-unit.failure-key", "context_refs": "context source keys", "evidence": "inventory evidence IDs"},
+        "optional_views": "Combine baseline.views (table, sequence, state, relationships) with baseline.guide (diagrams and scenario/stack navigation) as needed. Select guide.views from structure, calls, flow. Core guides are expanded; use guide.expanded=false only for supplementary detail.",
+        "view_rows": "from, label, to, context_refs; columns label those three values in that order. View-level context_refs may supply a shared default.",
+        "depth": "Choose the number, scope and detail of diagrams/scenarios by comprehension needs, uncertainty and consequence. Save time through shared evidence and fewer retries; do not drop useful views merely for speed or small line count.",
+    })
+    _write_json(output / "performance.json", {"prepared_at": time.time(), "prepare_seconds": round(time.perf_counter() - started, 6), "finalize_attempts": []})
     return output
+
+
+def _authoring_enums() -> dict[str, list[str]]:
+    definitions = _load_json(SCHEMA_PATH)["$defs"]
+    result = {}
+    for name in ("context_source", "claim", "invariant", "verification", "finding", "unit", "context_view"):
+        for field, rule in definitions[name]["properties"].items():
+            if "enum" in rule:
+                result[f"{name}.{field}"] = rule["enum"]
+    return result
+
+
+def _draft_enum_errors(draft: dict[str, Any]) -> list[str]:
+    errors = []
+    enums = _authoring_enums()
+    def check(kind, values, path):
+        for index, value in enumerate(values):
+            for key, allowed in enums.items():
+                name, field = key.split(".")
+                if name == kind and field in value and value[field] not in allowed:
+                    errors.append(f"{path}[{index}].{field}: {value[field]!r}; allowed: {', '.join(allowed)}")
+    check("context_source", draft.get("context_sources", []), "context_sources")
+    check("verification", draft.get("verification", []), "verification")
+    check("finding", draft.get("findings", []), "findings")
+    check("unit", draft.get("units", []), "units")
+    for index, unit in enumerate(draft.get("units", [])):
+        check("claim", unit.get("claims", []), f"units[{index}].claims")
+        check("invariant", unit.get("invariants", []), f"units[{index}].invariants")
+        check("context_view", unit.get("baseline", {}).get("views", []), f"units[{index}].baseline.views")
+    return errors
 
 
 def _placeholder_errors(value: Any, path: str = "$") -> list[str]:
@@ -784,6 +829,10 @@ def _expand_draft(draft: dict[str, Any], inventory: dict[str, Any]) -> dict[str,
                 record["context_refs"] = _resolve_refs(
                     record.get("context_refs", []), {}, global_refs, f"{key}.baseline.guide"
                 )
+            for view in baseline.get("views", []):
+                default_refs = view.pop("context_refs", [])
+                for row in view.get("rows", []):
+                    row["context_refs"] = _resolve_refs(row.get("context_refs", default_refs), {}, global_refs, f"{key}.baseline.views")
             item["baseline"] = baseline
         item["depends_on"] = [unit_keys.get(value, value) for value in item.get("depends_on", [])]
         local_refs: dict[str, str] = {}
@@ -864,7 +913,8 @@ def _expand_draft(draft: dict[str, Any], inventory: dict[str, Any]) -> dict[str,
         unit_key = item.pop("unit")
         item["unit_id"] = unit_keys.get(unit_key, unit_key)
         local = unit_locals.get(unit_key, {})
-        failures = unit_failures.get(unit_key, {})
+        failures = dict(unit_failures.get(unit_key, {}))
+        failures.update({f"{unit_key}.{key}": value for key, value in list(failures.items())})
         owner = next(unit for unit in units if unit["id"] == item["unit_id"])
         item["evidence_ids"] = _resolve_refs(
             item.pop("evidence_refs", owner["evidence"] and [spec["id"] for spec in owner["evidence"]]),
@@ -994,6 +1044,30 @@ def _check_drift(workdir: Path, inventory: dict[str, Any]) -> None:
 
 
 def finalize(workdir: Path) -> tuple[Path, list[str]]:
+    started = time.perf_counter()
+    metrics_path = workdir / "performance.json"
+    metrics = _load_json(metrics_path) if metrics_path.exists() else {"finalize_attempts": []}
+    attempt = {"status": "failed", "stages_seconds": {}}
+    if metrics.get("prepared_at") and not metrics["finalize_attempts"]:
+        metrics["prepare_to_first_finalize_seconds"] = round(time.time() - metrics["prepared_at"], 3)
+    try:
+        result = _finalize(workdir, attempt["stages_seconds"])
+        attempt["status"] = "success"
+        return result
+    finally:
+        attempt["total_seconds"] = round(time.perf_counter() - started, 6)
+        metrics["finalize_attempts"].append(attempt)
+        if workdir.is_dir():
+            _write_json(metrics_path, metrics)
+
+
+def _finalize(workdir: Path, stages: dict[str, float]) -> tuple[Path, list[str]]:
+    previous = time.perf_counter()
+    def mark(label):
+        nonlocal previous
+        now = time.perf_counter()
+        stages[label] = round(now - previous, 6)
+        previous = now
     workdir = workdir.resolve()
     inventory_path = workdir / "inventory.json"
     draft_path = workdir / "analysis-draft.json"
@@ -1001,18 +1075,28 @@ def finalize(workdir: Path) -> tuple[Path, list[str]]:
     draft = _load_json(draft_path)
     state = _load_json(workdir / "prepare-state.json")
     _check_drift(workdir, inventory)
+    mark("read_and_drift")
+    errors = _draft_enum_errors(draft)
+    if errors:
+        raise SystemExit("Draft errors (see authoring-help.json):\n- " + "\n- ".join(errors))
+    placeholders = _placeholder_errors(draft)
+    if placeholders:
+        raise SystemExit("Unresolved analysis placeholders:\n- " + "\n- ".join(placeholders))
     _freeze_context_sources(draft, state)
     draft = _redact_strings(draft, _redaction_values(state))
+    mark("context_and_redaction")
     _write_json(draft_path, draft)
     analysis = _expand_draft(draft, inventory)
     analysis_path = workdir / "analysis.json"
     _write_json(analysis_path, analysis)
     report = compile_report(inventory_path, analysis_path)
+    mark("expand_compile_validate")
     report_path = workdir / "review.json"
     _write_json(report_path, report)
     (workdir / "review.md").write_text(render_markdown(report), encoding="utf-8")
     template = HTML_TEMPLATE.read_text(encoding="utf-8")
     (workdir / "review.html").write_text(render_html(report, template), encoding="utf-8")
+    mark("render_and_write")
     private_dir = _owned_private_dir(state)
     if private_dir:
         shutil.rmtree(private_dir)

@@ -12,7 +12,8 @@ const renderContextGuide = (host, guide, sources) => {
   const execution = guide.execution;
   const steps = new Map((execution.steps || []).map(step => [step.id, step]));
   const contexts = new Map(sources.map(source => [source.id, source]));
-  let view = 'structure', scenarioIndex = 0, frameIndex = 0;
+  const selectedViews = guide.views || ['structure', 'calls', 'flow'];
+  let view = selectedViews[0], scenarioIndex = 0, frameIndex = 0;
   let activeNode = guide.nodes[0]?.id, activeStep = null;
   const kindLabel = kind => ({contains: t('contains', '包含'), depends_on: t('depends on', '依赖'), calls: t('calls', '调用'), dispatches: t('schedules', '安排回调'), reads: t('reads', '读取'), writes: t('writes', '写入'), next: t('then', '继续'), branch: t('condition', '条件'), loop: t('repeat', '循环'), async: t('later', '异步继续')})[kind] || kind;
   const sourceHtml = refs => [...new Set(refs)].map(id => {
@@ -23,10 +24,9 @@ const renderContextGuide = (host, guide, sources) => {
     const numbering = source.start_line ? t('Original line numbers', '原始行号') : t('Line numbers within this excerpt', '片段内行号，非原文件行号');
     return `<section class="cg-source"><strong>${esc(location)}</strong><p>${esc(source.summary)}</p><small>${esc(source.snapshot)} · ${esc(source.revision)} · ${numbering}</small><pre><code>${code}</code></pre></section>`;
   }).join('');
+  const viewLabels = {structure: t('Architecture & dependencies', '架构与依赖'), calls: t('Calls', '调用关系'), flow: t('Execution flow', '运行流程')};
   host.innerHTML = `<div class="cg-toolbar" role="group" aria-label="${t('Diagram views', '关系图视图')}">
-    <button type="button" data-guide-view="structure">${t('Architecture & dependencies', '架构与依赖')}</button>
-    <button type="button" data-guide-view="calls">${t('Calls', '调用关系')}</button>
-    <button type="button" data-guide-view="flow">${t('Execution flow', '运行流程')}</button></div>
+    ${selectedViews.map(name => `<button type="button" data-guide-view="${name}">${viewLabels[name]}</button>`).join('')}</div>
     <p class="cg-view-caption"></p><div class="cg-diagram" tabindex="0" aria-label="${t('Scrollable relationship diagram', '可滚动关系图')}"></div>
     <section class="cg-detail" aria-live="polite"><h4 class="cg-detail-title"></h4><p class="cg-detail-text"></p><details><summary>${t('View cited source', '查看所引用的源码')}</summary><div class="cg-evidence"></div></details></section>
     <details><summary>${t('All relationships and their meanings', '全部关系及其含义')}</summary><div class="cg-relations"></div></details>
@@ -107,12 +107,16 @@ const renderContextGuide = (host, guide, sources) => {
     }
     viewEdges = flow ? execution.transitions : guide.relations.filter(edge => view === 'calls' ? ['calls', 'dispatches'].includes(edge.kind) : !['calls', 'dispatches'].includes(edge.kind));
     const used = new Set(viewEdges.flatMap(edge => [edge.from, edge.to]));
-    const items = flow ? execution.steps.map(step => ({...step, label: step.action})) : guide.nodes.filter(node => view === 'structure' || used.has(node.id));
+    const items = flow ? execution.steps.map(step => ({...step, label: step.action})) : guide.nodes.filter(node => used.has(node.id) || (view === 'structure' && used.size === 0));
     el('.cg-view-caption').textContent = t('Arrows point from source to target. Select any node or numbered relationship below for its meaning and frozen source. Dashed arrows schedule later work.', '箭头从发起方指向目标。选择节点或下方关系，可查看职责、含义和源码；虚线表示安排稍后执行的工作。');
     el('.cg-diagram').innerHTML = items.length ? diagram(items, viewEdges, flow) : `<p>${esc(t('No calls are established by this context.', '当前上下文未证明调用关系。'))}</p>`;
     const labels = new Map(items.map(item => [item.id, item.label]));
     el('.cg-relations').innerHTML = viewEdges.map((edge, index) => `<button type="button" data-cg-edge="${index}"><strong>${index + 1}. ${esc(labels.get(edge.from))} → ${esc(labels.get(edge.to))}</strong><span>${esc(edge.label)}</span></button>`).join('');
     highlight();
+  };
+  const drawExecution = () => {
+    if (selectedViews.includes('flow')) view = 'flow';
+    draw();
   };
   const showFrame = () => {
     const scenario = execution.scenarios[scenarioIndex], frame = scenario.walkthrough[frameIndex], step = steps.get(frame.step);
@@ -129,7 +133,7 @@ const renderContextGuide = (host, guide, sources) => {
   };
   if (execution.status === 'available') {
     el('.cg-walkthrough').innerHTML = `<h4>${t('Follow a scenario', '跟着一次操作看运行过程')}</h4><label>${t('Scenario', '场景')} <select class="cg-scenarios">${execution.scenarios.map((scenario, index) => `<option value="${index}">${esc(scenario.title)}</option>`).join('')}</select></label><p class="cg-scenario-summary"></p><p class="cg-stack-note">${t('Source-derived stack illustration, not a runtime capture. Frames run from outermost caller to current function. An asynchronous continuation starts a new stack.', '调用栈依据源码推导，未实际运行。下方按外层调用者到当前函数排列；异步回调会开始新的调用栈。')}</p><div class="cg-toolbar"><button type="button" data-cg-prev>${t('Previous step', '上一步')}</button><span class="cg-counter"></span><button type="button" data-cg-next>${t('Next step', '下一步')}</button></div><div class="cg-walk-grid"><div class="cg-trace"></div><div><strong>${t('Active stack', '当前调用栈')}</strong><ol class="cg-stack"></ol><p class="cg-frame-explanation"></p><details><summary>${t('Source for this step', '本步源码')}</summary><div class="cg-frame-evidence"></div></details></div></div>`;
-    el('.cg-scenarios').addEventListener('change', event => { scenarioIndex = Number(event.target.value); frameIndex = 0; view = 'flow'; draw(); showFrame(); });
+    el('.cg-scenarios').addEventListener('change', event => { scenarioIndex = Number(event.target.value); frameIndex = 0; drawExecution(); showFrame(); });
   } else el('.cg-walkthrough').textContent = execution.reason;
   host.onclick = event => {
     const target = event.target.closest('button, [role="button"]'); if (!target) return;
@@ -160,7 +164,7 @@ const renderContextGuide = (host, guide, sources) => {
     else if (target.hasAttribute('data-cg-next')) frameIndex++;
     else if (target.dataset.cgFrame !== undefined) frameIndex = Number(target.dataset.cgFrame);
     else return;
-    view = 'flow'; draw(); showFrame();
+    drawExecution(); showFrame();
   };
   host.onkeydown = event => { if (event.target.matches('g[role="button"]') && ['Enter', ' '].includes(event.key)) { event.preventDefault(); event.target.dispatchEvent(new MouseEvent('click', {bubbles: true})); } };
   draw();

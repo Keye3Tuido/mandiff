@@ -10,6 +10,7 @@ from typing import Any
 
 from validate_review import validate_report
 from context_guide import guide_markdown
+from context_views import views_markdown
 
 
 def _cell(value: Any) -> str:
@@ -278,8 +279,9 @@ def render_markdown(report: dict[str, Any]) -> str:
         )
         if baseline.get("guide"):
             lines.extend(guide_markdown(baseline["guide"], format_refs, _cell))
-        else:
+        elif report["schema_version"] != "1.6" and not baseline.get("views"):
             lines.extend(["This report has no structured pre-change diagrams or source-derived stack walkthrough.", ""])
+        lines.extend(views_markdown(baseline.get("views", []), format_refs, _cell))
         for context_id in baseline.get("context_refs", []):
             source = context_by_id.get(context_id)
             if not source or not source.get("excerpt"):

@@ -20,7 +20,7 @@ def guide_records(guide: dict[str, Any]) -> list[dict[str, Any]]:
 def validate_guide(unit: dict[str, Any], report: dict[str, Any]) -> list[str]:
     baseline = unit.get("baseline", {})
     guide = baseline.get("guide")
-    required = unit["lane"] == "main" and unit["importance"] in {"critical", "normal"}
+    required = report["schema_version"] == "1.5" and unit["lane"] == "main" and unit["importance"] in {"critical", "normal"}
     if not guide:
         return [f"{unit['id']}.baseline.guide: architecture and execution guide required"] if required else []
     errors: list[str] = []
@@ -148,11 +148,14 @@ def guide_markdown(guide: dict, format_refs, cell) -> list[str]:
         return cn if zh else en
 
     nodes = {node["id"]: node for node in guide["nodes"]}
+    views = guide.get("views", ["structure", "calls", "flow"])
     lines = []
-    for title, relations in (
-        (t("Architecture and dependencies", "架构与依赖"), [r for r in guide["relations"] if r["kind"] not in {"calls", "dispatches"}]),
-        (t("Calls", "调用关系"), [r for r in guide["relations"] if r["kind"] in {"calls", "dispatches"}]),
+    for view, title, relations in (
+        ("structure", t("Architecture and dependencies", "架构与依赖"), [r for r in guide["relations"] if r["kind"] not in {"calls", "dispatches"}]),
+        ("calls", t("Calls", "调用关系"), [r for r in guide["relations"] if r["kind"] in {"calls", "dispatches"}]),
     ):
+        if view not in views:
+            continue
         lines.extend([f"#### {title}", ""])
         used = {r[k] for r in relations for k in ("from", "to")}
         selected = [node for node in nodes.values() if node["id"] in used] or list(nodes.values())
@@ -169,10 +172,11 @@ def guide_markdown(guide: dict, format_refs, cell) -> list[str]:
     if execution["status"] != "available":
         return lines
     steps = {step["id"]: step for step in execution["steps"]}
-    lines.extend(mermaid([{"id": s["id"], "label": s["action"]} for s in steps.values()], execution["transitions"]))
-    lines.extend([t("| From | To | Condition | Source |", "| 来源 | 目标 | 条件 | 源码 |"), "|---|---|---|---|"])
-    for edge in execution["transitions"]:
-        lines.append("| " + " | ".join(cell(x) for x in (steps[edge["from"]]["action"], steps[edge["to"]]["action"], edge["label"], format_refs(edge["context_refs"]))) + " |")
+    if "flow" in views:
+        lines.extend(mermaid([{"id": s["id"], "label": s["action"]} for s in steps.values()], execution["transitions"]))
+        lines.extend([t("| From | To | Condition | Source |", "| 来源 | 目标 | 条件 | 源码 |"), "|---|---|---|---|"])
+        for edge in execution["transitions"]:
+            lines.append("| " + " | ".join(cell(x) for x in (steps[edge["from"]]["action"], steps[edge["to"]]["action"], edge["label"], format_refs(edge["context_refs"]))) + " |")
     lines.extend(["", t("Source-derived stack illustration; not a runtime capture.", "调用栈依据源码推导，未实际运行。"), ""])
     for scenario in execution["scenarios"]:
         lines.extend([f"##### {scenario['title']}", "", scenario["summary"], ""])

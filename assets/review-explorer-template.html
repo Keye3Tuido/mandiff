@@ -94,9 +94,13 @@
     .baseline-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
     .baseline-grid > div, .baseline-block { min-width: 0; display: grid; gap: 5px; }
     .baseline-contexts { display: grid; gap: 12px; }
-    .baseline-context { display: grid; gap: 6px; }
+    .baseline-context > :not(summary) { margin-top: 6px; }
     .baseline-context pre { max-height: 320px; padding: 10px 12px; font-size: 12px; line-height: 1.5; }
     .context-guide { display: grid; gap: 14px; min-width: 0; }
+    .context-view { display: grid; gap: 8px; min-width: 0; }
+    .context-view pre { max-height: 320px; padding: 10px; }
+    .context-view td { vertical-align: top; overflow-wrap: anywhere; }
+    .context-sequence { display: grid; gap: 14px; padding-left: 24px; }
     .cg-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .context-guide button[aria-pressed="true"] { border-color: var(--focus); background: var(--soft); color: var(--text); }
     .cg-diagram { overflow: auto; max-height: 620px; min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
@@ -331,7 +335,8 @@
 
   <script id="mandiff-data" type="application/json">{"__replace_with_mandiff_report__":true}</script>
   <script>
-    /*__MANDIFF_CONTEXT_GUIDE__*/
+/*__MANDIFF_CONTEXT_GUIDE__*/
+/*__MANDIFF_CONTEXT_VIEWS__*/
     (() => {
       const model = JSON.parse(document.getElementById('mandiff-data').textContent);
       const units = Array.isArray(model.units) ? model.units : [];
@@ -645,7 +650,7 @@
         renderList(); renderDiff();
         byId('unit-order').textContent = `Step ${unit.order}/${units.length}`; byId('unit-title').innerHTML = narrativeHtml(unit.title, unitSymbols, unitLanguage); byId('unit-question').innerHTML = narrativeHtml(unit.question, unitSymbols, unitLanguage);
         byId('baseline-architecture').innerHTML = narrativeHtml(baseline.architecture || 'Unknown', unitSymbols, unitLanguage);
-        renderContextGuide(byId('context-guide'), baseline.guide, model.context_sources || []);
+        renderContextViews(byId('context-guide'), baseline, model.context_sources || [], model.schema_version);
         byId('baseline-responsibilities').innerHTML = (baseline.responsibilities || []).map(item => `<li>${narrativeHtml(item, unitSymbols, unitLanguage)}</li>`).join('') || '<li>Unknown</li>';
         byId('baseline-flow').innerHTML = (baseline.flow_steps || []).map(item => `<li>${narrativeHtml(item, unitSymbols, unitLanguage)}</li>`).join('') || '<li>Unknown</li>';
         byId('baseline-data-state').innerHTML = (baseline.data_and_state || []).map(item => `<li>${narrativeHtml(item, unitSymbols, unitLanguage)}</li>`).join('') || '<li>Unknown</li>';
@@ -654,7 +659,7 @@
           if (!source) return `<div class="baseline-context">${evidenceRef(id)}</div>`;
           const language = languageForPath(source.path);
           const excerpt = source.excerpt ? `<pre><code>${syntaxHighlight(source.excerpt, language, '')}</code></pre>` : '<span class="small muted">Frozen excerpt unavailable.</span>';
-          return `<div class="baseline-context"><div>${evidenceRef(id)}</div><span class="small muted">${escapeHtml(source.snapshot)} at ${escapeHtml(source.revision)}</span>${excerpt}</div>`;
+          return `<details class="baseline-context"><summary>${evidenceRef(id)}</summary><span class="small muted">${escapeHtml(source.snapshot)} at ${escapeHtml(source.revision)}</span>${excerpt}</details>`;
         }).join('') || '<span class="small muted">No frozen pre-change context.</span>';
         byId('unit-conclusion-status').textContent = unit.conclusion?.status || 'unproven'; byId('unit-conclusion').innerHTML = narrativeHtml(unit.conclusion?.statement || 'No unit conclusion provided.', unitSymbols, unitLanguage);
         byId('unit-before').innerHTML = narrativeHtml(unit.before, unitSymbols, unitLanguage); byId('unit-after').innerHTML = narrativeHtml(unit.after, unitSymbols, unitLanguage);

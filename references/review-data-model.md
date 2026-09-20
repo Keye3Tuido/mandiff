@@ -23,7 +23,7 @@ Record context sources at the top level with `id`, `kind`, `snapshot`, `revision
 
 ```json
 {
-  "schema_version": "1.5",
+  "schema_version": "1.6",
   "report": {
     "id": "stable-report-id",
     "repository": "repository identity",
@@ -85,14 +85,14 @@ Record context sources at the top level with `id`, `kind`, `snapshot`, `revision
 
 ## Review unit
 
-Every unit keeps the same stable field names. A `critical` or `normal` main-path unit must populate the full decision-grade packet below. Supporting or `context` units may use empty arrays for entry points, call path, invariants, consumers, compatibility, claims, failure modes, unknowns, and checks when those concepts do not affect the decision; mark their completeness fields `not_applicable`. They still require exact evidence, a conclusion, and at least one mechanism step.
+Every unit keeps the same stable field names. In 1.6, a main critical/normal unit requires original context, a claim, a check, a conclusion, and at least one mechanism step. Include entry/call paths, invariants, consumers, compatibility, failure modes and unknowns when they affect the decision; empty collections are allowed without inventing filler. Supporting/context units can also omit irrelevant claims and checks. Evidence coverage and snapshot validation are never optional.
 
 - Identity: `id`, `order`, `title`, `lane`, and `importance`.
 - Decision frame: one `question` and one falsifiable `contract`.
 - Decision output: one `conclusion` with status, statement, and evidence references.
 - State delta: symmetrical `before` and `after` statements.
-- Pre-change baseline: `architecture`, `responsibilities`, ordered `flow_steps`, `data_and_state`, `context_refs`, and `guide`. Main critical/normal units require frozen excerpts from the selector's pre-change side and a source-backed diagram guide. See [context-guide.md](context-guide.md) for nodes, typed directed relations, execution transitions, concrete scenarios, and source-derived stacks. `context_sources.start_line` optionally preserves the excerpt's one-based original line for source navigation.
-- Execution: `entry_points`, `call_path`, and 3-7 `mechanism_steps` for main critical/normal units; at least one mechanism step for every other unit.
+- Pre-change baseline: `architecture`, `responsibilities`, ordered `flow_steps`, `data_and_state`, `context_refs`. Main units require frozen excerpts from the original side. `views` supplies tables or interactions; `guide` supplies diagrams and scenario/stack navigation. Their schema optionality accommodates differing needs, not a default to omit them. Combine complementary forms and control their scope using [presentation.md](presentation.md). Optional `guide.views` selects graph types from `structure`, `calls`, `flow`; `guide.expanded` defaults to true, with false reserved for supplementary detail. `context_sources.start_line` optionally preserves the excerpt's one-based original line.
+- Execution: include `entry_points` and `call_path` when useful; `mechanism_steps` needs at least one truthful explanation, with no arbitrary three-step minimum in 1.6.
 - Constraints: `invariants`, `consumers`, and `compatibility`.
 - Evidence: author `depends_on`, `symbols`, and the declarative evidence `id`/`label`/`summary`; let the compiler derive `files`, `evidence_ids`, exact `diff`, ordered `diff_segments`, and stable `anchors`. Segments locate bytes but do not define completeness: the compiler derives the canonical display independently as each source file's exact metadata followed by the unit's complete owned hunks, then requires both the segments and `diff` to reproduce it.
 - Reasoning: atomic `claims`, concrete `failure_modes`, and explicit `unknowns`.
@@ -193,9 +193,11 @@ Before rendering, validate both JSON shape and these cross-record rules. `script
 8. Every ledger item records the evidence kind, source, and original fingerprint. `discovered` items may retain null ownership until assigned; every later state has one matching anchor and unit with matching source, kind, fingerprint, lane, and importance. Every anchor display fingerprint must equal the SHA-256 of its byte span in the decoded display artifact; the original fingerprint must also match unless ledger state is `redacted`.
 9. Summary and coverage counters are derived from files, anchors, ownership, and ledger state.
 10. Outcome references resolve to units, findings, claims, changed/context/reported evidence, or verification records.
-11. Every schema 1.4/1.5 main critical/normal unit has a complete baseline; its context references resolve only to frozen context excerpts from a valid pre-change snapshot, and each excerpt matches its fingerprint.
+11. Every schema 1.4/1.5/1.6 main critical/normal unit has a complete baseline; its context references resolve only to frozen excerpts from a valid pre-change snapshot, and each excerpt matches its fingerprint. Version 1.6 allows one original step and does not require a guide.
 12. Schema 1.5 main critical/normal units also have `baseline.guide`. Diagram IDs are unique within a unit; edges and steps resolve; every cited context belongs to that baseline. Execution steps are reachable from entry and covered by complete scenarios. Each illustrated stack ends at the current function and adjacent frames have synchronous call evidence. Asynchronous transitions begin at the new task's entry with a one-frame stack; synchronous transitions cannot silently replace the stack root. Unknown execution requires an unproven conclusion and `expand_scope`; unavailable execution must not include a fabricated walkthrough.
 
-Older schema 1.3/1.4 reports remain readable without a guide. Show its absence explicitly; never create original diagrams or stacks from after-change mechanism prose. New compilations emit 1.5 and must meet its requirements.
+13. Optional `baseline.views` rows cite the owning baseline's context. Their kind is table, sequence, state, or relationships; columns map to from/label/to, never changed-hunk evidence. The expander resolves shared context refs to individual rows before validation.
+
+Older schema 1.3/1.4/1.5 reports remain readable with their original constraints. Do not invent original diagrams or stacks from after-change prose. New compilations emit 1.6, where prose without a diagram is a valid deliberate choice. Optional supplied graphs retain all their structural checks.
 
 The renderer must refuse invalid reports before creating output. A visually complete page is not evidence that its model is coherent.

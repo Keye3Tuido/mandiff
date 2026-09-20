@@ -30,7 +30,7 @@ The command prints the review directory and semantic draft path. It:
 - emits changed locators and nearby test-name candidates;
 - stores machine-readable acquisition operations for drift.
 
-Use `--output` only for an explicitly requested location. Otherwise the portable default is `~/Documents/mandiff-reviews/<repository>/<digest>/` when Documents exists, or `~/mandiff-reviews/...`.
+Use `--output` to select a writable location outside the reviewed repository. Otherwise the portable default is `~/Documents/mandiff-reviews/<repository>/<digest>/` when Documents exists, or `~/mandiff-reviews/...`. If that default is denied, prepare falls back to an OS temporary directory; it does not override an explicitly requested location. Read the printed path.
 
 For a provider-frozen patch, use `--provenance pull_request --selector-label ... --base ... --head ...`. `prepare` does not fetch provider data; the host adapter supplies the already frozen patch.
 
@@ -50,9 +50,9 @@ For each main unit, capture only the definitions, direct callers and callees, st
 3. how control and data flowed before the change;
 4. what data or state governed the result.
 
-Write these facts into `baseline.architecture`, `baseline.responsibilities`, `baseline.flow_steps`, `baseline.data_and_state`, and `baseline.context_refs`. Every main `critical` or `normal` baseline requires at least one responsibility, three flow steps, one data/state statement, and one frozen context excerpt. If this cannot be established, stop the unit as missing context and expand scope. Do not use changed working-tree code or inferred intent as proof of the original flow.
+Write these facts into `baseline.architecture`, `baseline.responsibilities`, `baseline.flow_steps`, `baseline.data_and_state`, and `baseline.context_refs`. A main baseline needs a source-backed explanation of responsibility, original behavior, and relevant state. Schema 1.6 permits one truthful step; do not invent three. Do not use changed working-tree code or inferred intent as proof of original behavior.
 
-Then follow [context-guide.md](context-guide.md) to author `baseline.guide`. Map modules/functions/data to frozen source, distinguish dependency and call arrows, identify entry points and branch conditions, and walk through concrete inputs until a result. Each step includes the active synchronous stack; queued work begins a new stack when it later runs. Every node, relation, step, transition, and walkthrough frame references the baseline's context keys. Use `unknown` with an unproven conclusion and `expand_scope` for missing execution evidence; use `not_applicable` with a specific reason for non-executable behavior. The renderer does not infer relations from prose.
+Select complementary diagrams, tables, and representative scenarios using [presentation.md](presentation.md). Combine `baseline.views` with the graph/stack `baseline.guide` as needed. Control the scope and detail of each; do not replace useful diagrams and walkthroughs with a table merely to save generation time. `guide.views` selects the diagrams to display while reusing the same records. All displayed relationships still cite original source.
 
 If one unit contains both staged and unstaged evidence, freeze both required predecessors: `HEAD` for the staged portion and `INDEX` for the unstaged portion. If those predecessors describe materially different behavior, split the unit instead of presenting one ambiguous baseline.
 
@@ -62,7 +62,7 @@ Read `inventory.json`, `context-candidates.json`, and each selected hunk. Correc
 
 Determine the report language from the predominant language of the current conversation; an explicit user request overrides that default. Use it for all human-facing semantic prose. Write that prose in plain, precise, direct, and unambiguous language: prefer concrete subjects, actions, conditions, and results; keep sentences short where possible; use technical terms only when they add precision; explain each necessary term at first use; and never invent terminology or concepts. When the evidence is insufficient, say that the point is unknown or unverified. Do not infer the report language from the diff, repository, commit message, or English example. Keep code, symbols, paths, commands, source quotations, and fixed enum values unchanged where translation would reduce precision. Rewrite scaffold titles, labels, summaries, and placeholders that do not match the chosen language.
 
-The draft uses `schema_version: "2.0"` and semantic keys instead of final report IDs. Use `tests/fixtures/pipeline-draft.json` as the complete example.
+The draft uses `schema_version: "2.0"` and semantic keys instead of final report IDs. Use `tests/fixtures/concise-draft.json` for a simple change, and the generated `authoring-help.json` for allowed enums and references. Only open the larger graph example when necessary.
 
 Agent-authored content is limited to:
 
@@ -97,11 +97,13 @@ The command:
 3. resolves semantic keys and assigns stable final IDs;
 4. derives completeness and outcome aggregation;
 5. expands the compact draft into `analysis.json` schema 1.0;
-6. compiles and validates canonical `review.json` schema 1.5, including directed graph references, reachability, scenario continuity, and stack/call consistency;
+6. compiles and validates canonical `review.json` schema 1.6; when graphs are supplied, their references, reachability, scenarios, and stacks remain validated;
 7. renders `review.md` and self-contained `review.html`;
 8. removes private redaction material after success.
 
 Fix only the reported draft or validation error, then rerun `finalize`. Do not repeat evidence discovery.
+
+`performance.json` records preparation and each finalize attempt, including failed attempts. The prepare-to-first-finalize gap includes human/model work, permission waiting and idle time; it is not a precise attribution to any one cause. Script timings exclude that gap. Do not conflate fast compilation with fast end-to-end generation.
 
 ## Compact references
 

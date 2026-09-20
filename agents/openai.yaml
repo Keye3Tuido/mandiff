@@ -1,4 +1,4 @@
 interface:
   display_name: "ManDiff"
-  short_description: "用架构图、调用流程与逐步场景讲清原逻辑，再审阅可追查的 Git 改动"
-  default_prompt: "Use $mandiff to prepare the selected change. First explain the original system using frozen source-backed architecture, dependency, call and flow diagrams, then walk through concrete scenarios with source-derived stacks and source navigation. Distinguish queued callbacks from synchronous calls and explain missing evidence. Then explain the change and exact diff. Write semantic prose in our conversation language unless I specify another, use plain precise direct language without unnecessary or invented terminology, and finalize the portable report with the bundled workflow."
+  short_description: "结合关系图、表格、场景与调用说明，控制范围和细节，兼顾理解与生成速度"
+  default_prompt: "Use $mandiff to explain the original system and audit the selected change in our conversation language, combining useful diagrams, tables, scenarios and call walkthroughs with appropriate scope and detail while preserving exact evidence and balancing comprehension with generation time."

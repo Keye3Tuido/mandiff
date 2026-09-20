@@ -1,165 +1,92 @@
 ---
 name: mandiff
-description: Create a portable, evidence-complete review guide for a selected Git diff, commit, range, patch, or pull request. Explain the original system with source-backed architecture, dependency, call and flow diagrams, then walk through concrete scenarios and source-derived stacks before presenting the diff. Use when a large or cross-cutting change needs behavioral explanation, risk review, or manual audit. Freeze exact evidence and keep the reviewed source read-only.
+description: Explain and audit a selected Git change with source-backed system context, diagrams, tables, scenarios, and call walkthroughs. Select their scope and detail to balance understanding and generation time. Produce an offline review guide with exact evidence without modifying the reviewed source.
 ---
 
 # ManDiff
 
-Turn one selected change set into a decision-grade tutorial for human review. Preserve exact evidence while spending Agent time only on semantic judgment.
+Help a reviewer unfamiliar with the code understand the original system, then judge the selected change. Balance generation time with comprehension by selecting what to explain and how deeply. Preserve useful diagrams, tables, scenarios, and call stacks; fewer representations or fewer words are not success criteria.
 
-## Core contract
+## Non-negotiable evidence and language
 
-1. Treat the selected diff as immutable evidence and the reviewed repository as read-only.
-2. Review only the requested selector. Never include adjacent commits, nested repositories, or unrelated changes silently.
-3. Account for every selected evidence item exactly once; never hide a remainder bucket.
-4. Separate observed facts, frozen context, reported intent, inference, and unknowns.
-5. Keep the complete exact diff beside each review unit. Evidence coverage is not human approval.
-6. Before showing or explaining a diff, establish how the affected behavior worked before the change. Use source-backed diagrams for architecture, dependencies, calls, and execution; then walk through concrete inputs, actions, state changes, and results with an illustrated active stack. Cite frozen pre-change code for every relationship and step. Label source-derived stacks as illustrations, never runtime captures.
-7. Never show a bare evidence ID in human-facing output. Render every reference as the stable ID plus its file and line when available, a plain-language statement of what it proves, and a direct jump to the owning unit and exact diff in interactive output.
-8. Produce confirmed behavior, defects, unproven behavior, and a recommended disposition.
-9. Keep the canonical output agent-neutral, offline, and independent of a proprietary UI.
-10. Write report prose in the predominant language of the current conversation unless the user explicitly requests another language.
-11. Write human-facing descriptions in plain, precise, direct, and unambiguous language. Prefer concrete words and short sentences. Use technical terms only when necessary; explain a term at first use, never invent terminology, and state uncertainty plainly when the evidence is insufficient.
-12. Use the bundled workflow script. Never create build, encoding, hashing, diff, or rendering helpers.
+- Keep the reviewed repository read-only. Freeze only the requested selector; do not silently include other commits, submodules, or working-tree changes.
+- Present every selected evidence item exactly once with complete original bytes. Never truncate a remainder to save time.
+- Separate source facts, reported intent, inference, and unverified behavior. A build is not evidence of runtime behavior.
+- Explain original behavior from the pre-change version. Commit/range: base; staged: HEAD; unstaged: INDEX. Mixed staged/unstaged units need both predecessors, or separate units if their behavior differs.
+- Use the predominant conversation language unless requested otherwise. Write precise, direct prose with concrete subjects, actions, conditions, and results. Avoid unnecessary terms and invented concepts. Preserve code, identifiers, paths, commands, and source quotations.
+- Every human-facing reference needs a readable location and meaning. IDs alone do not explain evidence.
 
 ## Default workflow
 
-Read [references/compiler-workflow.md](references/compiler-workflow.md), then use only two normal commands:
-
-```sh
-python3 scripts/mandiff.py prepare <selector arguments>
-# Edit only analysis-draft.json in the printed review directory.
-python3 scripts/mandiff.py finalize <review-directory>
-```
-
-`prepare` owns repository discovery, immutable ref resolution, diff capture, report directory, source manifest, inventory, evidence IDs, default labels, bounded grouping scaffolds, and context/test candidates.
-
-The Agent then reads each hunk once, corrects the proposed behavioral groups, and writes only semantic content in `analysis-draft.json`. Do not write final IDs, completeness tables, hashes, byte spans, ledgers, coverage, outcome aggregation, Markdown, or HTML.
-
-`finalize` owns context freezing, local-key resolution, all final IDs, completeness, outcome aggregation, drift, exact evidence compilation, validation, Markdown, HTML, and private redaction cleanup. Fix only errors it reports; do not restart the review.
-
-## Select the target
-
-Use one selector:
+Use the bundled commands; do not build a custom report generator or hand-author hashes, exact diff spans, final IDs, ledgers, Markdown, or HTML.
 
 ```sh
 python3 scripts/mandiff.py prepare --repo <repo> --unstaged
-python3 scripts/mandiff.py prepare --repo <repo> --staged
-python3 scripts/mandiff.py prepare --repo <repo> --uncommitted
-python3 scripts/mandiff.py prepare --repo <repo> --commit <revision>
-python3 scripts/mandiff.py prepare --repo <repo> --commit <merge> --parent <n>
-python3 scripts/mandiff.py prepare --repo <repo> --range <base..head>
-python3 scripts/mandiff.py prepare --patch <patch-file>
+# Read the frozen diff, inventory.json, and authoring-help.json.
+# Establish context, then edit analysis-draft.json.
+python3 scripts/mandiff.py finalize <review-directory>
 ```
 
-Use `--output <directory>` only when the user requested a location; otherwise accept the portable default outside the reviewed repository. Use `--repository`, `--selector-label`, `--base`, `--head`, and `--provenance pull_request` to describe a provider-frozen patch. A pull-request patch requires frozen base and head identities.
+Other selectors: `--staged`, `--uncommitted`, `--commit REV`, `--range BASE..HEAD`, or `--patch FILE`. A merge needs `--parent N`. Ask only when the intended selector is genuinely unclear. A submodule pointer is not authorization to review its nested diff.
 
-If repository or selector intent is ambiguous, ask one concise question. Merge commits require an explicit parent. Submodule evidence covers only the pointer unless nested changes are explicitly selected.
+Choose a writable output directory outside the reviewed repository using `--output` when useful. If the default Documents destination is denied, the script falls back to an OS temporary directory and prints its location. Avoid repeated permission requests merely to write generated artifacts; respect an explicitly requested destination.
 
-## Review the prepared evidence
+Read [compiler-workflow.md](references/compiler-workflow.md) only for selector, redaction, or authoring details not covered here. `prepare` supplies valid enum values and reference rules in `authoring-help.json`; read it before guessing field names or opening implementation files.
 
-The prepared directory contains:
+## Decide what the reader needs to understand
 
-- `inventory.json`: compact exact evidence index;
-- `analysis-draft.json`: Agent-editable semantic model;
-- `context-candidates.json`: changed locators and nearby test-name candidates;
-- `sources/`: frozen safe display diffs;
-- `prepare-state.json`: machine-owned acquisition and drift state.
+Start with the review question. Explain the relevant system boundary, the changed component's responsibility, its input/state and consumers, and an original trigger-to-result example. Give enough surrounding context to place the code, without tracing unrelated subsystems.
 
-Read the inventory and each frozen hunk once. Treat proposed units and lane classifications as scaffolding, not conclusions. Group by behavior and dependency rather than filename. Keep contracts and core behavior before integration, user-facing effects, tests, and mechanical consequences.
+Choose a complementary set of representations using [presentation.md](references/presentation.md). Decide what each shows and how far it follows the code:
 
-Before analyzing what changed, build the pre-change baseline for each main unit. Read the minimum frozen definitions, direct callers and callees, state owners, and contracts needed to answer four questions: where this behavior sits, what the relevant parts are responsible for, how control and data moved before the change, and which data or state governed the result. Use the selector's pre-change side, not the changed worktree. If the available source cannot establish the baseline, mark the unit as missing context and expand scope; do not compensate with assumptions.
+- System organization and shared dependencies: a focused relationship diagram showing the affected component in its surroundings.
+- Repeated fields, responsibilities, producers/consumers: a table showing the details needed to judge impact.
+- Original behavior: a representative trigger-to-result scenario; include another when a branch materially changes the outcome.
+- Order, initialization, callbacks, or state changes: a sequence, flow, or state view showing relevant conditions and transitions.
+- Nested execution, return, or asynchronous boundaries: a source-backed call walkthrough and stack at the steps that explain the behavior.
 
-Read [references/context-guide.md](references/context-guide.md) before authoring that baseline. Build `baseline.guide` from the same frozen code: named components and responsibilities, directed relations with precise meanings, execution steps and conditions, and complete scenarios showing the active stack. Follow calls across files; distinguish synchronous calls from queued work. Cover every drawn step in a scenario, including affected branches, returns, loops, and asynchronous boundaries. Explain a non-executable change with an explicit reason instead of inventing a stack. The compiler generates diagrams; do not write Mermaid or SVG yourself.
+Choose the number of views, nodes, relationships, scenarios, and steps to preserve understanding. A relationship graph and a parameter table can complement each other; do not treat either as a replacement for the other. Keep the overview and representative behavior visible; collapse secondary detail and source excerpts. Use prose alone only when the reader can already locate the behavior and follow its consequences without reconstructing omitted relationships. A small diff is not by itself a reason to omit context.
 
-Before editing, determine the report language from the conversation as a whole, not from the language of source code, commit messages, or the bundled example. An explicit user language request wins. Use that language consistently for every human-facing semantic field, including titles, questions, contracts, conclusions, evidence labels and summaries, context summaries, findings, checks, verification, and the final recommendation. Write these fields so a person can understand them without decoding agent jargon: prefer concrete subjects, actions, conditions, and results; use a technical term only when it adds precision; explain it at first use; and do not create names for concepts that the source does not name. If the evidence does not establish a point, say that it is unknown or unverified instead of implying certainty. Preserve source quotations, code, identifiers, paths, commands, and model enum values exactly when translation would change their meaning. Rewrite scaffold text that is in another language; do not produce a mixed-language report merely because the example or diff uses English.
+Use `baseline.views` for tables or interaction steps and `baseline.guide` for diagrams and scenario/stack navigation; see [context-guide.md](references/context-guide.md). They may be used together. `guide.views` selects which diagrams are drawn from shared evidence; there is no need to draw all graph types. Source-derived stacks are illustrations, not captured runtime traces. Stop at a named, evidenced boundary rather than inventing a complete call chain.
 
-Use:
+## Keep generation bounded
 
-- `main`: contracts, runtime behavior, state transitions, integration, failure handling, and risk-bearing verification;
-- `supporting`: tests, docs, generated output, fixtures, lockfiles, repetitive wiring, and mechanical consequences.
+Use uncertainty and consequence, not just line count, to decide depth. A one-line authorization or concurrency change may need broad evidence; a large mechanical edit may not.
 
-Promote a supposedly mechanical item if it changes behavior or risk. Prefer 1-8 units. The scaffold caps a proposed unit at 12 evidence items or 600 changed lines, but the Agent may merge or split units without duplicating evidence.
+Save time first by reusing verified source and relationships, acquiring ranges automatically, and avoiding duplicate authoring and validation retries. Then reduce unrelated breadth or repetitive detail. Do not remove an explanatory form that materially helps the reader merely because it takes effort to author. Choose representative cases that cover different outcomes; do not enumerate equivalent paths or trace every getter separately.
 
-## Edit the compact semantic draft
+- Start with the changed function, its direct caller/consumer, and state owner. Read other code only to resolve a specific open question.
+- Reuse context already established in this task after checking revision and scope. Use one context source for multiple relevant references.
+- Prefer `revision/path/start/lines` for Git context: the script acquires the excerpt. Do not spend model output reproducing source already on disk.
+- Read independent files together. Write one semantic draft and do one precision pass; repair reported errors locally rather than restarting discovery.
+- Do not compile the project, run application tests, browse the web, or perform browser QA solely to generate a review. Record relevant existing verification; run additional checks only when needed for the decision or requested.
+- Do not open the large generic graph example for a simple change. Use the small example below first.
+- If analysis expands unexpectedly, tell the user which concrete question needs more evidence. Deliver a valid review with explicit unknowns when necessary; never invent completeness to meet a time target.
 
-Use stable human keys such as `parser-contract` or `startup-check`; `finalize` assigns `Uxx`, `CLxx`, `FMxx`, `Rxx`, and `Vxx` IDs.
+`performance.json` records prepare time, time before the first finalize attempt, attempt count, and script stages. The gap includes reading, writing, approval, and idle time; it is not model-only timing. Use these measurements when diagnosing slowness. Do not claim script timing is total review latency.
 
-For every unit, provide:
+## Author semantic content
 
-- `key`, semantic `title`, `lane`, and `importance`;
-- one `question` and falsifiable `contract`;
-- symmetrical `before` and `after` behavior;
-- a `baseline` with `architecture`, `responsibilities`, `flow_steps`, `data_and_state`, `context_refs`, and the structured `guide` for main critical/normal units;
-- concise `background` and causal `mechanism_steps`;
-- one `conclusion` with status and statement;
-- exact selected `evidence` IDs, rewriting their labels and summaries in the report language when needed.
+Keep the draft `schema_version: "2.0"`; the compiler produces report schema 1.6. Main units still need an evidence-backed baseline, a claim, an actionable check, and a conclusion. A single truthful original step and change explanation are enough when the behavior is simple. Empty ancillary collections are allowed; include real risks and unknowns rather than filler.
 
-For each `critical` or `normal` main unit, the baseline must have at least one responsibility, three original-flow steps, one data/state statement, and one frozen pre-change context reference. Also provide entry points, direct call/data path, invariants, consumers, compatibility, atomic claims, concrete failure modes, explicit unknowns, and executable checks. Main units normally need 3-7 mechanism steps, 1-4 claims, and 1-3 checks.
+`baseline` contains `architecture`, `responsibilities`, `flow_steps`, `data_and_state`, and `context_refs`. The schema permits optional `views` and `guide` because needs vary; this is not a default instruction to omit them. Use both when they explain different aspects. The compiler accepts older completed drafts and renders old reports.
 
-For supporting or `context` units, omit irrelevant collections. One causal mechanism step is enough for a purely mechanical consequence. `finalize` derives honest `not_applicable` completeness states instead of requiring filler.
+Use semantic keys; `finalize` assigns IDs. Claims/checks use local claim keys; findings use a unit key and local or owning-unit-qualified failure keys. Cross-unit claims use `unit-key.claim-key`. Changed evidence uses inventory IDs. Observed claims and conclusions inherit the owning unit's changed evidence unless narrowed explicitly.
 
-References in the compact draft use keys:
+Use [tests/fixtures/concise-draft.json](tests/fixtures/concise-draft.json) for a small complete draft. Use [review-data-model.md](references/review-data-model.md) only for a field not covered by the example or help file. Main units describe behavior; supporting units cover genuinely mechanical tests/docs/fixtures. Do not relabel a risky change as supporting to bypass requirements.
 
-- claim `evidence_refs`: changed evidence IDs or context/requirement keys;
-- failure/check `claim_refs`: claim keys in the same unit;
-- unit `depends_on`: unit keys;
-- finding `unit`, `claim_refs`, and `failure_refs`: semantic keys;
-- verification `unit_refs` and `claim_refs`: semantic keys;
-- cross-unit claim references: `<unit-key>.<claim-key>`.
-
-Observed claims default to the owning unit's changed evidence when `evidence_refs` is omitted. Findings default to the owning unit's evidence. Conclusion references default to the unit evidence. Use explicit references when a statement depends on a narrower or contextual source.
-
-`finalize` derives confirmed, defect, and unproven outcome lists from conclusions and findings. The Agent still writes the recommendation disposition and evidence-backed reason, and may supply explicit outcome entries when the derived summary is insufficient.
-
-Use `tests/fixtures/pipeline-draft.json` as the complete generic compact example. Read [references/review-data-model.md](references/review-data-model.md) only when that example is insufficient or validation fails.
-
-Use `tests/fixtures/context-guide-draft.json` for a complete cross-file example with branching and a queued callback. Its original source files are in `tests/fixtures/context-system/`. Diagram labels, relation explanations, scenario inputs, step actions, and stack explanations follow the same report-language and plain-language rules as the rest of the report.
-
-## Add frozen pre-change context
-
-Context selection remains semantic; acquisition is mechanical. A context source may contain a direct `excerpt`, or declare:
-
+A frozen context source can be declared as:
 ```json
-{
-  "key": "reader",
-  "kind": "caller",
-  "snapshot": "base",
-  "revision": "<exact-pre-change-commit-or-HEAD-INDEX>",
-  "path": "src/reader.ext",
-  "start": 20,
-  "lines": 30,
-  "locator": "read_value",
-  "summary": "Why this context changes the review decision."
-}
+{"key":"reader","kind":"caller","snapshot":"base","revision":"<pre-change SHA>","path":"src/reader.ext","start":20,"lines":30,"locator":"read_value","summary":"Calls the changed reader and uses its result."}
 ```
+A standalone patch needs supplied original excerpts with explicit provenance. Context records remain separate from changed-evidence coverage.
 
-`finalize` reads the exact snapshot, resolves commit refs, slices the declared lines, and fingerprints the excerpt. For a commit or range use `base`; for staged changes use `head` at `HEAD`; for unstaged changes use `index` at `INDEX`; for provider-frozen or standalone patches use `provider`, `base`, or `patch` as appropriate. A main-unit baseline may not cite the changed working tree as its original logic. Add only definitions, direct callers or callees, state owners, contracts, and tests needed to make the original behavior understandable. Stop when the original flow and review decision are both clear; record missing context instead of touring adjacent architecture.
+For secret redaction, supply a private JSON file `{"values":["sensitive literal"]}` through `prepare --redactions FILE`. Never put the secret on the command line. Read [evidence-protocol.md](references/evidence-protocol.md) for special evidence cases; `finalize` handles redaction and deletes its private temporary material after success. On abandonment use `mandiff.py cleanup <review-directory>`.
 
-Commit messages, pull-request descriptions, issues, and requirements establish reported intent only. They never prove runtime behavior.
+## Finish
 
-## Redaction
+Before finalize, remove duplicate descriptions, unsupported intent, generic risks, vague checks, and prose in the wrong language. Check selected relationships against cited code; schema validation cannot prove an explanation true.
 
-The Agent identifies sensitive values; the script performs every cryptographic and byte-handling step. Put values in a private JSON file, never on the command line:
+Completion means an unfamiliar reader can locate the changed part, follow a representative original operation, understand the important state and conditions, and trace each explanation to source. Check that useful relationships have not been compressed into unexplained prose. Preserve exact evidence coverage, explicit risks/unknowns, verification status, and a recommendation. Diagram counts vary with these needs. A missing prerequisite can justify `expand_scope` rather than a speculative conclusion.
 
-```json
-{"values": ["sensitive literal"]}
-```
-
-Pass `--redactions <private-json>` to `prepare`. It creates safe display diffs, keyed original commitments, and temporary private material outside the report. `finalize` redacts matching semantic/context strings and deletes its private material after successful validation. If abandoning the review, run:
-
-```sh
-python3 scripts/mandiff.py cleanup <review-directory>
-```
-
-Read [references/evidence-protocol.md](references/evidence-protocol.md) only for redaction failures, mixed mutable sources, binary/submodule evidence, or evidence-binding diagnostics.
-
-## Precision and completion
-
-Before finalizing, do one semantic precision pass without rereading every hunk: remove title/diff restatements, unsupported intent verbs, generic risks, vague checks, extrapolation beyond frozen evidence, and human-facing prose left in a different language. Report defect, risk, design question, and missing context separately.
-
-Completion requires `finalize` to succeed with every main unit backed by a complete pre-change baseline and source-backed diagram guide, every evidence item assigned and byte-validated once, zero missing/duplicate/unknown changed evidence, resolved semantic references, valid main-path completeness, and explicit limitations or tests not run. Check each graph arrow against its cited code; structural validation cannot establish that an interpretation is true. When execution is available, verify the scenario follows the declared flow and synchronous stacks, including returns and asynchronous boundaries.
-
-For oversized output, keep one prepared inventory and split only at unit boundaries; never truncate evidence. For host-specific delivery or text-only fallback, read [references/agent-portability.md](references/agent-portability.md). Read visual or Markdown format references only when changing a renderer.
-
-The scripts require Python 3.9+ and Git for repository selectors, use only the standard library, and never modify the reviewed repository.
+Deliver the HTML/Markdown link with what changed and what remains unverified. Read [agent-portability.md](references/agent-portability.md) only for host-specific delivery or text-only fallback. Python 3.9+ and Git are sufficient; the runtime uses the standard library.

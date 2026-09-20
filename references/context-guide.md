@@ -1,18 +1,22 @@
 # Explain the original system with diagrams and a walkthrough
 
-This is the authoring contract for `baseline.guide` in report schema 1.5. Read it before writing a main review unit. The compiler renders the same structured model in HTML and Markdown; do not author SVG, Mermaid, or a separate diagram description.
+This is the `baseline.guide` contract for diagrams and scenario/stack navigation. Use [presentation.md](presentation.md) to decide which relationships, scenarios, and details the reader needs. Combine the guide with parameter or responsibility tables where they complement it. Schema 1.6 permits omission for self-contained explanations; this is not a default instruction to omit graphs for speed. The compiler renders HTML and Markdown; do not author SVG or Mermaid yourself.
 
 ## Reader journey
 
 1. Explain where the changed behavior lives. Map components, functions, data, and external boundaries to their responsibilities and original source locations.
-2. Show architecture and dependencies, then calls. Every arrow has a direction, a concrete meaning, and evidence. Containment, dependency, reading/writing, a synchronous call, and scheduling work are different relations.
-3. Start with a concrete trigger and input. Draw the original flow including relevant branches, loops, failure exits, and asynchronous continuations.
+2. Select diagrams for architecture/dependencies, calls, or flow. Every arrow has a direction, a concrete meaning, and evidence. Containment, dependency, reading/writing, a synchronous call, and scheduling work are different relations. A stack walkthrough may already explain a simple call chain without another call diagram.
+3. Start with a concrete trigger and input. Explain the original flow including branches, loops, failure exits, and asynchronous continuations that affect the review. Draw them when a flow diagram adds understanding.
 4. Walk through at least one complete scenario from entry to result. At each step explain the current function, its action/result, and the active stack from outermost caller to current function. Every drawn flow step must appear in a scenario; add scenarios for other branches. State concrete inputs and starting state. A repeated function call and a return should visibly push and remove frames; do not retain a returned function.
 5. Connect the now-understood original behavior to the change, then show the exact diff.
 
 Keep a diagram focused on the behavior being reviewed. Split a large unit by behavior or explain shared architecture in an earlier dependency unit. Do not replace a useful diagram with a directory tree or make one giant graph of unrelated modules.
 
 ## Data contract
+
+`guide.views` optionally selects and orders diagrams: `structure`, `calls`, `flow`; for example `["structure", "flow"]` draws an overview and a flow without a redundant call graph. Omitting it preserves the three-view renderer used by existing reports. The selected scenario and its stack remain available even when its flow diagram is not selected. All supplied nodes, relations, and execution records are validated, including records not drawn in a selected view.
+
+The guide is expanded by default so its core explanation is visible. Use `guide.expanded: false` only for supplementary detail when another visible view already establishes the needed context. This controls initial HTML display; it does not remove content from either format.
 
 `guide.nodes` contains `{id, label, kind, responsibility, context_refs}`. IDs are unit-local semantic keys, never visible titles. `kind` is `component`, `function`, `data`, or `external`. Labels name real components or symbols; responsibilities explain what they do. Context refs resolve to the owning baseline's frozen sources, including a path and source locator.
 
@@ -37,6 +41,6 @@ Use the pre-change revision for each selected source. Shared IDs do not allow mi
 
 ## Presentation and compatibility
 
-HTML shows separate architecture/dependency, call, and flow diagrams as native SVG with readable relationship lists. Selecting a node, arrow, or walkthrough step opens its source and meaning. Scenario navigation highlights the active flow step and stack. It works offline, by mouse and keyboard, and in a narrow viewport with scrolling inside diagrams only.
+HTML draws only the selected graph types as native SVG with relationship lists, filtering each graph to its participating nodes. It displays the core guide before detailed tables. Supplementary guides explicitly marked `expanded: false` render when opened. Selecting a node, arrow, or walkthrough step opens its source and meaning. Scenario navigation updates the step and stack; it switches to a flow diagram only if that view was selected. The guide is offline and keyboard-operable, with internal diagram scrolling.
 
 Markdown emits Mermaid from the same records and includes source-linked node/relationship tables and the full scenario/stack walkthrough, so hosts without Mermaid can still read it. Missing/irrelevant execution displays its stated reason. Older 1.3/1.4 reports remain renderable and explicitly say the diagram guide is unavailable; never infer diagrams or original stacks from old after-change mechanism prose.

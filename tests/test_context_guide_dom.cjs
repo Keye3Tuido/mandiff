@@ -14,6 +14,11 @@ const q = selector => { const item = document.querySelector(selector); assert.ok
 const click = selector => q(selector).dispatchEvent(new window.MouseEvent('click', {bubbles: true}));
 const stack = () => [...document.querySelectorAll('.cg-stack button')].map(item => item.textContent.replace(/^\d+\. /, ''));
 assert.deepEqual(errors, []);
+if (!document.querySelector('#context-guide svg')) {
+  const details = q('#context-guide > details');
+  details.open = true;
+  details.dispatchEvent(new window.Event('toggle'));
+}
 assert.equal(document.querySelectorAll('#context-guide svg').length, 1);
 assert.deepEqual(stack(), ['request()']);
 click('[data-guide-view="calls"]');

@@ -1,0 +1,29 @@
+{
+  "schema_version": "2.0",
+  "recommendation": {"disposition": "expand_scope", "reason": "修改已确认；启动读取的实际结果还需验证。"},
+  "context_sources": [{
+    "key": "reader", "kind": "caller", "snapshot": "patch", "revision": "original-fixture",
+    "path": "src/reader.py", "locator": "startup() / read_value()", "summary": "启动时读取 src/example.txt 的文本。",
+    "excerpt": "from pathlib import Path\n\ndef read_value():\n    return Path('src/example.txt').read_text().strip()\n\ndef startup():\n    return read_value()\n"
+  }],
+  "units": [{
+    "key": "value", "title": "启动读取的新文本", "lane": "main", "importance": "normal",
+    "question": "启动读取的文本是否由 old 改为 new？",
+    "contract": "startup() 返回 src/example.txt 中去掉首尾空白后的文本。",
+    "conclusion": {"status": "partially_confirmed", "statement": "文件内容已改为 new；未运行启动程序。"},
+    "before": "文件中保存 old。", "after": "文件中保存 new。",
+    "background": "这次只改变启动读取的数据，没有改变读取函数。",
+    "baseline": {
+      "architecture": "启动入口通过 read_value() 读取一个本地文本文件；本次改的是该文件的数据。",
+      "responsibilities": ["startup() 发起读取，read_value() 返回文件文本。"],
+      "flow_steps": ["启动调用 read_value()，后者读取 src/example.txt 并返回 old。"],
+      "data_and_state": ["值保存在 src/example.txt，读取过程不修改该文件。"],
+      "context_refs": ["reader"]
+    },
+    "mechanism_steps": ["将文件中的 old 替换为 new，读取方式保持不变。"],
+    "evidence": [{"id": "F01-H01", "label": "更新文本", "summary": "将 old 替换为 new。"}],
+    "claims": [{"key": "literal", "statement": "所选补丁将文件文本改为 new。", "kind": "observed", "confidence": "high"}],
+    "checks": [{"label": "检查启动读取结果", "setup": "使用修改后的文件。", "action": "运行 startup()。", "expected": "返回 new。", "claim_refs": ["literal"]}],
+    "unknowns": ["没有运行启动程序，实际读取结果尚未验证。"]
+  }]
+}

@@ -54,9 +54,9 @@ When the host supports an inline interactive view, make review units selectable.
 9. concrete failure modes and focused setup/action/expected checks;
 10. findings, unresolved questions, evidence-validation state, and human-decision state.
 
-Do not collapse the pre-change baseline by default. A reviewer must be able to understand the original path without opening the diff. Show the exact frozen context excerpts under the explanation so the reviewer can verify that the prose matches the original code.
+Keep the pre-change overview visible. A reviewer should understand the original behavior without opening the diff. Put frozen excerpts behind source disclosures, so inspecting hundreds of source lines does not prevent seeing the big picture.
 
-Before the diff, render `baseline.guide` as separate architecture/dependency, call, and execution diagrams. Each node and arrow opens its meaning and frozen source path, locator, revision, and excerpt. Follow [context-guide.md](context-guide.md): scenario steps highlight the active flow and outermost-to-current stack; asynchronous continuation starts a new stack. Use native inline SVG so the HTML remains offline. Keep relation lists and source links available to keyboard users and scroll wide graphs inside their own container. Clearly label stacks as source-derived illustrations, not runtime captures.
+Before the diff, combine the context representations selected under [presentation.md](presentation.md). `baseline.views` provides tables or numbered interactions. `baseline.guide` provides diagrams and scenario/stack navigation, expanded by default before the tables; `guide.views` controls which graph types are drawn. Use `guide.expanded: false` only for supplementary detail and render that guide on demand. Diagrams remain offline SVG with keyboard-accessible node/arrow/source controls and honest source-derived stack labels.
 
 Every visible reference must decode the stable ID inline: show the source path and line when available, followed by a one-line statement of what that reference establishes. A bare identifier is never sufficient UI copy. In interactive output, selecting changed evidence must open its owning review unit, show the complete exact diff, and locate the referenced hunk.
 

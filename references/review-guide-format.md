@@ -88,7 +88,7 @@ This section must appear before the review question, before/after summary, and e
 - **Data and state:** who owns the relevant data, where it is read or written, and which conditions govern the result.
 - **Frozen context:** cite and show the exact pre-change excerpts that establish the explanation.
 
-Use `baseline.guide` and [context-guide.md](context-guide.md) to render architecture/dependency, call, and flow diagrams from structured evidence. Follow with complete scenarios showing concrete inputs, each action/result, and the active stack. Every node and arrow has a source reference. Markdown includes Mermaid plus readable tables and step/stack text; HTML provides node/arrow/step selection and frozen-source navigation. Stacks are explicitly source-derived illustrations. If execution is irrelevant or unknown, state why instead of fabricating a flow.
+Combine useful relationship diagrams, tables, representative scenarios, and call/stack explanations using [presentation.md](presentation.md). Control what each shows and how much detail it includes; do not default to prose or a table as a speed shortcut. Keep the overview and core walkthrough visible, with source and supplementary detail accessible. Relationships cite original code; stacks are explicitly source-derived illustrations. Explain unknown execution instead of fabricating it.
 
 For main `critical` or `normal` units, never substitute the changed hunk, commit message, or inferred intent for pre-change source. If the original flow cannot be established, classify it as missing context and recommend expanding scope before presenting the diff as reviewable.
 
@@ -131,7 +131,7 @@ Never print a changed-evidence ID such as `F01-H01` by itself. Every occurrence 
 
 ### Mechanism walkthrough
 
-Walk through control flow, data flow, state transitions, and error paths in 3-7 causal steps.
+Explain the changed mechanism in as many causal steps as the behavior needs; one is sufficient for a local rule. Include state, data, and error paths only when they affect the review decision.
 
 ### Invariants, consumers, and compatibility
 

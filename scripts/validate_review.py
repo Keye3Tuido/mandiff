@@ -71,7 +71,7 @@ def _shape_errors(
     if "const" in rule and value != rule["const"]:
         errors.append(f"{path}: expected constant {rule['const']!r}")
     if "enum" in rule and value not in rule["enum"]:
-        errors.append(f"{path}: value {value!r} is not allowed")
+        errors.append(f"{path}: value {value!r} is not allowed; expected one of {rule['enum']!r}")
 
     if isinstance(value, dict):
         for key in rule.get("required", []):
@@ -283,7 +283,7 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
         _check_refs(unit.get("verification_ids", []), set(verifications), f"{unit_id}.verification_ids", errors)
         baseline = unit.get("baseline", {})
         _check_refs(baseline.get("context_refs", []), context_ids, f"{unit_id}.baseline.context_refs", errors)
-        if baseline and (report.get("schema_version") in {"1.4", "1.5"} or baseline.get("guide")):
+        if baseline and (report.get("schema_version") in {"1.4", "1.5", "1.6"} or baseline.get("guide") or baseline.get("views")):
             allowed_snapshots: set[str] = set()
             required_snapshot_groups: list[tuple[str, set[str]]] = []
             snapshot_by_provenance = {
@@ -329,6 +329,10 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
 
         if report.get("schema_version") == "1.5" or baseline.get("guide"):
             errors.extend(validate_guide(unit, report))
+        for view in baseline.get("views", []):
+            for row in view["rows"]:
+                if not set(row["context_refs"]).issubset(baseline.get("context_refs", [])):
+                    errors.append(f"{unit_id}.baseline.views: every row must cite baseline.context_refs")
 
         unit_segments: list[tuple[str, int, int]] = []
         displayed_chunks: list[bytes] = []
@@ -460,7 +464,8 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
             _check_refs(check.get("claim_ids", []), local_claims, f"{unit_id}.check[{check.get('id')}].claim_ids", errors)
 
         if unit.get("lane") == "main" and unit.get("importance") in {"critical", "normal"}:
-            if report.get("schema_version") in {"1.4", "1.5"}:
+            adaptive = report.get("schema_version") == "1.6"
+            if report.get("schema_version") in {"1.4", "1.5", "1.6"}:
                 if not baseline:
                     errors.append(f"{unit_id}.baseline: main critical/normal units require original-logic context")
                 else:
@@ -468,8 +473,9 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
                         errors.append(f"{unit_id}.completeness.baseline: must be 'complete'")
                     if not baseline.get("responsibilities"):
                         errors.append(f"{unit_id}.baseline.responsibilities: requires at least one item")
-                    if len(baseline.get("flow_steps", [])) < 3:
-                        errors.append(f"{unit_id}.baseline.flow_steps: requires at least 3 original-flow steps")
+                    minimum = 1 if adaptive else 3
+                    if len(baseline.get("flow_steps", [])) < minimum:
+                        errors.append(f"{unit_id}.baseline.flow_steps: requires at least {minimum} original-flow step(s)")
                     if not baseline.get("data_and_state"):
                         errors.append(f"{unit_id}.baseline.data_and_state: requires at least one item")
                     if not baseline.get("context_refs"):
@@ -486,10 +492,13 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
                 "checks",
             )
             for field in required_collections:
+                if adaptive and field not in {"claims", "checks"}:
+                    continue
                 if not unit.get(field):
                     errors.append(f"{unit_id}.{field}: main critical/normal units require at least one item")
-            if len(unit.get("mechanism_steps", [])) < 3:
-                errors.append(f"{unit_id}.mechanism_steps: main critical/normal units require at least 3 steps")
+            minimum = 1 if adaptive else 3
+            if len(unit.get("mechanism_steps", [])) < minimum:
+                errors.append(f"{unit_id}.mechanism_steps: main critical/normal units require at least {minimum} step(s)")
 
 
     _detect_dependency_cycles(units, errors)
