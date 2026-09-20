@@ -96,6 +96,33 @@
     .baseline-contexts { display: grid; gap: 12px; }
     .baseline-context { display: grid; gap: 6px; }
     .baseline-context pre { max-height: 320px; padding: 10px 12px; font-size: 12px; line-height: 1.5; }
+    .context-guide { display: grid; gap: 14px; min-width: 0; }
+    .cg-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .context-guide button[aria-pressed="true"] { border-color: var(--focus); background: var(--soft); color: var(--text); }
+    .cg-diagram { overflow: auto; max-height: 620px; min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+    .cg-diagram svg { display: block; max-width: none; margin: auto; font-size: 13px; }
+    .cg-node, .cg-edge { cursor: pointer; }
+    .cg-node rect { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; }
+    .cg-node text, .cg-edge text { fill: var(--text); }
+    .cg-edge > path { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+    .cg-diagram marker path { fill: var(--muted); }
+    .cg-edge text { font-size: 11px; paint-order: stroke; stroke: var(--surface); stroke-width: 5; }
+    .cg-node.cg-active rect, .cg-node:focus rect { stroke: var(--focus); stroke-width: 3; fill: var(--soft); }
+    .cg-edge:focus > path { stroke: var(--focus); stroke-width: 3; }
+    .cg-relations, .cg-trace, .cg-detail, .cg-walkthrough, .cg-source { display: grid; gap: 8px; min-width: 0; }
+    .cg-relations button { display: grid; gap: 4px; text-align: left; overflow-wrap: anywhere; }
+    .cg-relations button span, .cg-stack-note, .cg-view-caption { color: var(--muted); font-size: 13px; }
+    .cg-walkthrough { border-top: 1px solid var(--line); padding-top: 16px; }
+    .cg-walk-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+    .cg-walk-grid > div { min-width: 0; }
+    .cg-trace button { text-align: left; }
+    .cg-stack { padding-left: 20px; display: grid; gap: 6px; }
+    .cg-stack li:last-child { border-left: 3px solid var(--focus); padding-left: 6px; }
+    .cg-detail { border-left: 3px solid var(--focus); padding-left: 12px; }
+    .cg-evidence { display: grid; gap: 14px; }
+    .cg-source { overflow-wrap: anywhere; }
+    .cg-source pre { max-height: 330px; padding: 10px; font-size: 12px; }
+    .cg-line-number { display: inline-block; width: 3em; color: var(--muted); user-select: none; }
     .unit-conclusion { padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
     .before-after { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; border-block: 1px solid var(--line); padding-block: 14px; }
     .before-after > div { display: grid; gap: 4px; }
@@ -182,7 +209,7 @@
       .shell { padding-inline: 12px; gap: 16px; }
       .topbar { position: static; }
       .scope { max-width: 100%; }
-      .outcome-grid, .facts, .analysis-grid, .baseline-grid, .before-after { grid-template-columns: 1fr; }
+      .outcome-grid, .facts, .analysis-grid, .baseline-grid, .cg-walk-grid, .before-after { grid-template-columns: 1fr; }
       .outcome-grid > div { padding: 10px 0; }
       .outcome-grid > div + div { border-left: 0; border-top: 1px solid var(--line); }
       .before-after > span { text-align: center; transform: rotate(90deg); }
@@ -230,6 +257,7 @@
         <section class="baseline-panel" aria-labelledby="baseline-title">
           <div class="section-head"><h3 id="baseline-title">Original logic before this change</h3><span class="small muted">Read this before the diff</span></div>
           <div class="baseline-block"><span class="small muted">Architecture</span><p id="baseline-architecture"></p></div>
+          <div id="context-guide" class="context-guide"></div>
           <div class="baseline-grid">
             <div><span class="small muted">Responsibilities</span><ul id="baseline-responsibilities" class="compact-list"></ul></div>
             <div><span class="small muted">Data and state</span><ul id="baseline-data-state" class="compact-list"></ul></div>
@@ -303,6 +331,7 @@
 
   <script id="mandiff-data" type="application/json">{"__replace_with_mandiff_report__":true}</script>
   <script>
+    /*__MANDIFF_CONTEXT_GUIDE__*/
     (() => {
       const model = JSON.parse(document.getElementById('mandiff-data').textContent);
       const units = Array.isArray(model.units) ? model.units : [];
@@ -616,6 +645,7 @@
         renderList(); renderDiff();
         byId('unit-order').textContent = `Step ${unit.order}/${units.length}`; byId('unit-title').innerHTML = narrativeHtml(unit.title, unitSymbols, unitLanguage); byId('unit-question').innerHTML = narrativeHtml(unit.question, unitSymbols, unitLanguage);
         byId('baseline-architecture').innerHTML = narrativeHtml(baseline.architecture || 'Unknown', unitSymbols, unitLanguage);
+        renderContextGuide(byId('context-guide'), baseline.guide, model.context_sources || []);
         byId('baseline-responsibilities').innerHTML = (baseline.responsibilities || []).map(item => `<li>${narrativeHtml(item, unitSymbols, unitLanguage)}</li>`).join('') || '<li>Unknown</li>';
         byId('baseline-flow').innerHTML = (baseline.flow_steps || []).map(item => `<li>${narrativeHtml(item, unitSymbols, unitLanguage)}</li>`).join('') || '<li>Unknown</li>';
         byId('baseline-data-state').innerHTML = (baseline.data_and_state || []).map(item => `<li>${narrativeHtml(item, unitSymbols, unitLanguage)}</li>`).join('') || '<li>Unknown</li>';

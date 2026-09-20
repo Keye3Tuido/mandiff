@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from validate_review import validate_report
+from context_guide import guide_markdown
 
 
 def _cell(value: Any) -> str:
@@ -44,7 +45,8 @@ def _reference_catalog(report: dict[str, Any]) -> tuple[dict[str, str], set[str]
         for check in unit["checks"]:
             catalog[check["id"]] = check["label"]
     for source in report["context_sources"]:
-        parts = [source.get("path"), source.get("locator"), source.get("summary")]
+        path = source["path"] + (f":{source['start_line']}" if source.get("start_line") else "")
+        parts = [path, source.get("locator"), source.get("summary")]
         catalog[source["id"]] = " · ".join(str(part) for part in parts if part)
     for requirement in report["requirements"]:
         catalog[requirement["id"]] = requirement["statement"]
@@ -59,6 +61,8 @@ def _reference(identifier: str, catalog: dict[str, str], changed_evidence: set[s
     rendered_id = f"`{identifier}`"
     if identifier in changed_evidence:
         rendered_id = f"[{rendered_id}](#evidence-{identifier.lower()})"
+    elif identifier.startswith("C") and identifier[1:].isdigit():
+        rendered_id = f"[{rendered_id}](#context-{identifier.lower()})"
     description = catalog.get(identifier)
     return f"{rendered_id} · {description}" if description else rendered_id
 
@@ -241,6 +245,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         findings_by_unit.setdefault(finding["unit_id"], []).append(finding)
     total_units = len(report["units"])
     context_by_id = {item["id"]: item for item in report["context_sources"]}
+    context_anchors = set()
     for unit in report["units"]:
         baseline = _baseline(unit)
         lines.extend(
@@ -271,12 +276,17 @@ def render_markdown(report: dict[str, Any]) -> str:
                 "",
             ]
         )
+        if baseline.get("guide"):
+            lines.extend(guide_markdown(baseline["guide"], format_refs, _cell))
+        else:
+            lines.extend(["This report has no structured pre-change diagrams or source-derived stack walkthrough.", ""])
         for context_id in baseline.get("context_refs", []):
             source = context_by_id.get(context_id)
             if not source or not source.get("excerpt"):
                 continue
             lines.extend(
                 [
+                    f'<a id="context-{context_id.lower()}"></a>' if context_id not in context_anchors else "",
                     f"#### {_reference(context_id, reference_catalog, changed_evidence)}",
                     "",
                     f"Snapshot: `{source['snapshot']}` at `{source['revision']}`",
@@ -285,6 +295,7 @@ def render_markdown(report: dict[str, Any]) -> str:
                     "",
                 ]
             )
+            context_anchors.add(context_id)
         lines.extend(
             [
                 f"**Review question:** {unit['question']}",

@@ -56,6 +56,8 @@ When the host supports an inline interactive view, make review units selectable.
 
 Do not collapse the pre-change baseline by default. A reviewer must be able to understand the original path without opening the diff. Show the exact frozen context excerpts under the explanation so the reviewer can verify that the prose matches the original code.
 
+Before the diff, render `baseline.guide` as separate architecture/dependency, call, and execution diagrams. Each node and arrow opens its meaning and frozen source path, locator, revision, and excerpt. Follow [context-guide.md](context-guide.md): scenario steps highlight the active flow and outermost-to-current stack; asynchronous continuation starts a new stack. Use native inline SVG so the HTML remains offline. Keep relation lists and source links available to keyboard users and scroll wide graphs inside their own container. Clearly label stacks as source-derived illustrations, not runtime captures.
+
 Every visible reference must decode the stable ID inline: show the source path and line when available, followed by a one-line statement of what that reference establishes. A bare identifier is never sufficient UI copy. In interactive output, selecting changed evidence must open its owning review unit, show the complete exact diff, and locate the referenced hunk.
 
 Support the complete reviewer loop:

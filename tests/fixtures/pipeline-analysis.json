@@ -29,7 +29,7 @@
       "path": "src/reader.txt",
       "locator": "read_value",
       "summary": "Reads the stored value at startup.",
-      "excerpt": "Reads the value at startup."
+      "excerpt": "from pathlib import Path\n\ndef read_value():\n    return Path('src/example.txt').read_text().strip()\n\ndef startup():\n    return read_value()\n"
     }
   ],
   "requirements": [
@@ -70,7 +70,148 @@
         "data_and_state": [
           "src/example.txt owns the persisted value; the reader does not change its format."
         ],
-        "context_refs": ["C01"]
+        "context_refs": ["C01"],
+        "guide": {
+          "nodes": [
+            {
+              "id": "startup",
+              "label": "startup",
+              "kind": "function",
+              "responsibility": "Calls the reader during application startup.",
+              "context_refs": [
+                "C01"
+              ]
+            },
+            {
+              "id": "reader",
+              "label": "read_value",
+              "kind": "function",
+              "responsibility": "Reads the stored value for startup.",
+              "context_refs": [
+                "C01"
+              ]
+            },
+            {
+              "id": "value",
+              "label": "src/example.txt",
+              "kind": "data",
+              "responsibility": "Stores the one-line value.",
+              "context_refs": [
+                "C01"
+              ]
+            }
+          ],
+          "relations": [
+            {
+              "from": "startup",
+              "to": "reader",
+              "kind": "calls",
+              "label": "Calls the value reader at startup.",
+              "context_refs": [
+                "C01"
+              ]
+            },
+            {
+              "from": "reader",
+              "to": "value",
+              "kind": "reads",
+              "label": "Reads the persisted value.",
+              "context_refs": [
+                "C01"
+              ]
+            }
+          ],
+          "execution": {
+            "status": "available",
+            "reason": "The flow is derived from the supplied original reader context.",
+            "entry": "start",
+            "steps": [
+              {
+                "id": "start",
+                "node": "startup",
+                "action": "Start the application.",
+                "context_refs": [
+                  "C01"
+                ]
+              },
+              {
+                "id": "read",
+                "node": "reader",
+                "action": "Read the stored value.",
+                "context_refs": [
+                  "C01"
+                ]
+              },
+              {
+                "id": "finish",
+                "node": "startup",
+                "action": "Receive the value.",
+                "context_refs": [
+                  "C01"
+                ]
+              }
+            ],
+            "transitions": [
+              {
+                "from": "start",
+                "to": "read",
+                "kind": "next",
+                "label": "Call read_value.",
+                "context_refs": [
+                  "C01"
+                ]
+              },
+              {
+                "from": "read",
+                "to": "finish",
+                "kind": "next",
+                "label": "Return the value.",
+                "context_refs": [
+                  "C01"
+                ]
+              }
+            ],
+            "scenarios": [
+              {
+                "title": "Read the original value",
+                "summary": "Startup reads the one-line persisted value.",
+                "walkthrough": [
+                  {
+                    "step": "start",
+                    "stack": [
+                      "startup"
+                    ],
+                    "explanation": "Startup is the entry point.",
+                    "context_refs": [
+                      "C01"
+                    ]
+                  },
+                  {
+                    "step": "read",
+                    "stack": [
+                      "startup",
+                      "reader"
+                    ],
+                    "explanation": "The reader is active while startup waits.",
+                    "context_refs": [
+                      "C01"
+                    ]
+                  },
+                  {
+                    "step": "finish",
+                    "stack": [
+                      "startup"
+                    ],
+                    "explanation": "The reader has returned; startup receives the value.",
+                    "context_refs": [
+                      "C01"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
       },
       "entry_points": ["read_value"],
       "call_path": ["startup", "read_value", "src/example.txt"],

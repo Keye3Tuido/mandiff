@@ -52,6 +52,8 @@ For each main unit, capture only the definitions, direct callers and callees, st
 
 Write these facts into `baseline.architecture`, `baseline.responsibilities`, `baseline.flow_steps`, `baseline.data_and_state`, and `baseline.context_refs`. Every main `critical` or `normal` baseline requires at least one responsibility, three flow steps, one data/state statement, and one frozen context excerpt. If this cannot be established, stop the unit as missing context and expand scope. Do not use changed working-tree code or inferred intent as proof of the original flow.
 
+Then follow [context-guide.md](context-guide.md) to author `baseline.guide`. Map modules/functions/data to frozen source, distinguish dependency and call arrows, identify entry points and branch conditions, and walk through concrete inputs until a result. Each step includes the active synchronous stack; queued work begins a new stack when it later runs. Every node, relation, step, transition, and walkthrough frame references the baseline's context keys. Use `unknown` with an unproven conclusion and `expand_scope` for missing execution evidence; use `not_applicable` with a specific reason for non-executable behavior. The renderer does not infer relations from prose.
+
 If one unit contains both staged and unstaged evidence, freeze both required predecessors: `HEAD` for the staged portion and `INDEX` for the unstaged portion. If those predecessors describe materially different behavior, split the unit instead of presenting one ambiguous baseline.
 
 ### 3. Edit semantic data once
@@ -95,7 +97,7 @@ The command:
 3. resolves semantic keys and assigns stable final IDs;
 4. derives completeness and outcome aggregation;
 5. expands the compact draft into `analysis.json` schema 1.0;
-6. compiles and validates canonical `review.json` schema 1.4;
+6. compiles and validates canonical `review.json` schema 1.5, including directed graph references, reachability, scenario continuity, and stack/call consistency;
 7. renders `review.md` and self-contained `review.html`;
 8. removes private redaction material after success.
 

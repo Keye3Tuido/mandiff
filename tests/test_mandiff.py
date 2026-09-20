@@ -219,6 +219,7 @@ class ManDiffWorkflowTests(unittest.TestCase):
             report = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(report["context_sources"][0]["revision"], base)
             self.assertEqual(report["context_sources"][0]["excerpt"], "old\n")
+            self.assertEqual(report["context_sources"][0]["start_line"], 1)
 
     def test_redaction_hides_values_and_cleans_private_material_after_finalize(self):
         with tempfile.TemporaryDirectory() as directory:

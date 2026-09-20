@@ -14,6 +14,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from context_guide import validate_guide
+
 
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "assets" / "review-model.schema.json"
 HUNK_HEADER = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
@@ -281,7 +283,7 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
         _check_refs(unit.get("verification_ids", []), set(verifications), f"{unit_id}.verification_ids", errors)
         baseline = unit.get("baseline", {})
         _check_refs(baseline.get("context_refs", []), context_ids, f"{unit_id}.baseline.context_refs", errors)
-        if report.get("schema_version") == "1.4" and baseline:
+        if baseline and (report.get("schema_version") in {"1.4", "1.5"} or baseline.get("guide")):
             allowed_snapshots: set[str] = set()
             required_snapshot_groups: list[tuple[str, set[str]]] = []
             snapshot_by_provenance = {
@@ -324,6 +326,9 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
                     errors.append(
                         f"{unit_id}.baseline.context_refs: requires pre-change context for {provenance} evidence"
                     )
+
+        if report.get("schema_version") == "1.5" or baseline.get("guide"):
+            errors.extend(validate_guide(unit, report))
 
         unit_segments: list[tuple[str, int, int]] = []
         displayed_chunks: list[bytes] = []
@@ -455,7 +460,7 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
             _check_refs(check.get("claim_ids", []), local_claims, f"{unit_id}.check[{check.get('id')}].claim_ids", errors)
 
         if unit.get("lane") == "main" and unit.get("importance") in {"critical", "normal"}:
-            if report.get("schema_version") == "1.4":
+            if report.get("schema_version") in {"1.4", "1.5"}:
                 if not baseline:
                     errors.append(f"{unit_id}.baseline: main critical/normal units require original-logic context")
                 else:

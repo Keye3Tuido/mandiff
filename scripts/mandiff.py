@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from compile_review import compile_report, create_inventory
+from context_guide import guide_records
 from render_markdown import render_markdown
 from render_review import render_html
 
@@ -397,6 +398,11 @@ def _scaffold_units(inventory: dict[str, Any]) -> list[dict[str, Any]]:
                         "flow_steps": [],
                         "data_and_state": [],
                         "context_refs": [],
+                        "guide": {
+                            "nodes": [],
+                            "relations": [],
+                            "execution": {"status": "unknown", "reason": "Explain the original execution or why it cannot be established."},
+                        },
                     },
                     "mechanism_steps": [],
                     "evidence": [_evidence_spec(item) for item in items],
@@ -599,6 +605,7 @@ def _freeze_context_sources(draft: dict[str, Any], state: dict[str, Any]) -> Non
         if not selected:
             raise SystemExit(f"context source {index}: selected line range is empty")
         source["revision"] = revision
+        source["start_line"] = start
         source["excerpt"] = selected.decode("utf-8", "replace")
 
 
@@ -773,7 +780,11 @@ def _expand_draft(draft: dict[str, Any], inventory: dict[str, Any]) -> dict[str,
             baseline["context_refs"] = _resolve_refs(
                 baseline.get("context_refs", []), {}, global_refs, f"{key}.baseline.context_refs"
             )
-        item["baseline"] = baseline
+            for record in guide_records(baseline.get("guide", {})):
+                record["context_refs"] = _resolve_refs(
+                    record.get("context_refs", []), {}, global_refs, f"{key}.baseline.guide"
+                )
+            item["baseline"] = baseline
         item["depends_on"] = [unit_keys.get(value, value) for value in item.get("depends_on", [])]
         local_refs: dict[str, str] = {}
         claims = []

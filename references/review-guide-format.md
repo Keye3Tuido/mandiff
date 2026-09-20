@@ -88,6 +88,8 @@ This section must appear before the review question, before/after summary, and e
 - **Data and state:** who owns the relevant data, where it is read or written, and which conditions govern the result.
 - **Frozen context:** cite and show the exact pre-change excerpts that establish the explanation.
 
+Use `baseline.guide` and [context-guide.md](context-guide.md) to render architecture/dependency, call, and flow diagrams from structured evidence. Follow with complete scenarios showing concrete inputs, each action/result, and the active stack. Every node and arrow has a source reference. Markdown includes Mermaid plus readable tables and step/stack text; HTML provides node/arrow/step selection and frozen-source navigation. Stacks are explicitly source-derived illustrations. If execution is irrelevant or unknown, state why instead of fabricating a flow.
+
 For main `critical` or `normal` units, never substitute the changed hunk, commit message, or inferred intent for pre-change source. If the original flow cannot be established, classify it as missing context and recommend expanding scope before presenting the diff as reviewable.
 
 ### Goal

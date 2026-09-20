@@ -23,7 +23,7 @@ Record context sources at the top level with `id`, `kind`, `snapshot`, `revision
 
 ```json
 {
-  "schema_version": "1.4",
+  "schema_version": "1.5",
   "report": {
     "id": "stable-report-id",
     "repository": "repository identity",
@@ -91,7 +91,7 @@ Every unit keeps the same stable field names. A `critical` or `normal` main-path
 - Decision frame: one `question` and one falsifiable `contract`.
 - Decision output: one `conclusion` with status, statement, and evidence references.
 - State delta: symmetrical `before` and `after` statements.
-- Pre-change baseline: `architecture`, `responsibilities`, ordered `flow_steps`, `data_and_state`, and `context_refs`. Main critical/normal units require frozen excerpts from the selector's pre-change side.
+- Pre-change baseline: `architecture`, `responsibilities`, ordered `flow_steps`, `data_and_state`, `context_refs`, and `guide`. Main critical/normal units require frozen excerpts from the selector's pre-change side and a source-backed diagram guide. See [context-guide.md](context-guide.md) for nodes, typed directed relations, execution transitions, concrete scenarios, and source-derived stacks. `context_sources.start_line` optionally preserves the excerpt's one-based original line for source navigation.
 - Execution: `entry_points`, `call_path`, and 3-7 `mechanism_steps` for main critical/normal units; at least one mechanism step for every other unit.
 - Constraints: `invariants`, `consumers`, and `compatibility`.
 - Evidence: author `depends_on`, `symbols`, and the declarative evidence `id`/`label`/`summary`; let the compiler derive `files`, `evidence_ids`, exact `diff`, ordered `diff_segments`, and stable `anchors`. Segments locate bytes but do not define completeness: the compiler derives the canonical display independently as each source file's exact metadata followed by the unit's complete owned hunks, then requires both the segments and `diff` to reproduce it.
@@ -193,6 +193,9 @@ Before rendering, validate both JSON shape and these cross-record rules. `script
 8. Every ledger item records the evidence kind, source, and original fingerprint. `discovered` items may retain null ownership until assigned; every later state has one matching anchor and unit with matching source, kind, fingerprint, lane, and importance. Every anchor display fingerprint must equal the SHA-256 of its byte span in the decoded display artifact; the original fingerprint must also match unless ledger state is `redacted`.
 9. Summary and coverage counters are derived from files, anchors, ownership, and ledger state.
 10. Outcome references resolve to units, findings, claims, changed/context/reported evidence, or verification records.
-11. Every schema 1.4 main critical/normal unit has a complete baseline; its context references resolve only to frozen context excerpts from a valid pre-change snapshot, and each excerpt matches its fingerprint.
+11. Every schema 1.4/1.5 main critical/normal unit has a complete baseline; its context references resolve only to frozen context excerpts from a valid pre-change snapshot, and each excerpt matches its fingerprint.
+12. Schema 1.5 main critical/normal units also have `baseline.guide`. Diagram IDs are unique within a unit; edges and steps resolve; every cited context belongs to that baseline. Execution steps are reachable from entry and covered by complete scenarios. Each illustrated stack ends at the current function and adjacent frames have synchronous call evidence. Asynchronous transitions begin at the new task's entry with a one-frame stack; synchronous transitions cannot silently replace the stack root. Unknown execution requires an unproven conclusion and `expand_scope`; unavailable execution must not include a fabricated walkthrough.
+
+Older schema 1.3/1.4 reports remain readable without a guide. Show its absence explicitly; never create original diagrams or stacks from after-change mechanism prose. New compilations emit 1.5 and must meet its requirements.
 
 The renderer must refuse invalid reports before creating output. A visually complete page is not evidence that its model is coherent.

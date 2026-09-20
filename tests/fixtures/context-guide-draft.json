@@ -1,0 +1,827 @@
+{
+  "schema_version": "2.0",
+  "recommendation": {
+    "disposition": "expand_scope",
+    "reason": "先运行空缓存刷新检查，并确认真实调用方会驱动 tick()。",
+    "refs": [
+      "cache-refresh",
+      "demo-check"
+    ]
+  },
+  "context_sources": [
+    {
+      "key": "app",
+      "kind": "definition",
+      "snapshot": "patch",
+      "revision": "original-demo-v1",
+      "path": "app.py",
+      "locator": "request()",
+      "summary": "接收键名，把读取交给服务层。",
+      "excerpt": "from service import load\n\n\ndef request(key, schedule):\n    return load(key, schedule)\n",
+      "start_line": 1
+    },
+    {
+      "key": "service",
+      "kind": "definition",
+      "snapshot": "patch",
+      "revision": "original-demo-v1",
+      "path": "service.py",
+      "locator": "load() / refresh()",
+      "summary": "决定立即返回还是安排刷新。",
+      "excerpt": "from store import CACHE, fetch\n\n\ndef load(key, schedule):\n    if key in CACHE:\n        return CACHE[key]\n    schedule(refresh, key)\n    return None\n\n\ndef refresh(key):\n    CACHE[key] = fetch(key)\n",
+      "start_line": 1
+    },
+    {
+      "key": "store",
+      "kind": "definition",
+      "snapshot": "patch",
+      "revision": "original-demo-v1",
+      "path": "store.py",
+      "locator": "CACHE / fetch()",
+      "summary": "保存缓存，并提供示例数据。",
+      "excerpt": "CACHE = {\"empty\": None}\n\n\ndef fetch(key):\n    return \"value:\" + key\n",
+      "start_line": 1
+    },
+    {
+      "key": "scheduler",
+      "kind": "definition",
+      "snapshot": "patch",
+      "revision": "original-demo-v1",
+      "path": "scheduler.py",
+      "locator": "schedule() / tick()",
+      "summary": "保存待执行任务，在 tick() 时取出执行。",
+      "excerpt": "QUEUE = []\n\n\ndef schedule(callback, key):\n    QUEUE.append((callback, key))\n\n\ndef tick():\n    if QUEUE:\n        callback, key = QUEUE.pop(0)\n        callback(key)\n",
+      "start_line": 1
+    }
+  ],
+  "requirements": [],
+  "units": [
+    {
+      "key": "cache-refresh",
+      "title": "空缓存也需要安排刷新",
+      "lane": "main",
+      "importance": "normal",
+      "question": "键存在但值为 None 时，是否会安排刷新？",
+      "contract": "有可用缓存值时立即返回；否则安排一次刷新，本次读取返回 None。",
+      "conclusion": {
+        "status": "partially_confirmed",
+        "statement": "条件已排除 None 缓存值；未运行示例业务代码，调度效果仍需验证。",
+        "evidence_refs": [
+          "F01-H01",
+          "service"
+        ]
+      },
+      "before": "键存在就直接返回，即使对应值为 None，也不会刷新。",
+      "after": "只有键存在且值不是 None 才直接返回，其余情况安排刷新。",
+      "background": "先理解读取与回调之间的时间差，再检查这一行条件修改。",
+      "baseline": {
+        "architecture": "请求入口调用缓存服务。服务读取缓存或安排任务；稍后由外部调用 tick() 执行刷新并写回缓存。",
+        "responsibilities": [
+          "request() 接收读取请求。",
+          "load() 判断是否使用缓存；refresh() 负责填充缓存。",
+          "schedule() 只入队；tick() 执行已经入队的任务。"
+        ],
+        "flow_steps": [
+          "request() 调用 load()，检查键是否已缓存。",
+          "键存在则直接返回；键不存在则入队并返回 None。",
+          "外部调用方稍后调用 tick()，执行 refresh()。",
+          "refresh() 获取新值并写入 CACHE。"
+        ],
+        "data_and_state": [
+          "CACHE 由 store.py 定义，load() 读取，refresh() 写入。",
+          "QUEUE 由 scheduler.py 保存；请求返回时，刷新任务可能还在队列中。"
+        ],
+        "context_refs": [
+          "app",
+          "service",
+          "store",
+          "scheduler"
+        ],
+        "guide": {
+          "nodes": [
+            {
+              "id": "app",
+              "label": "app.py · 请求入口",
+              "kind": "component",
+              "responsibility": "接收键名，把读取交给服务层。",
+              "context_refs": [
+                "app"
+              ]
+            },
+            {
+              "id": "service",
+              "label": "service.py · 缓存读取",
+              "kind": "component",
+              "responsibility": "决定立即返回还是安排刷新。",
+              "context_refs": [
+                "service"
+              ]
+            },
+            {
+              "id": "store",
+              "label": "store.py · 数据来源",
+              "kind": "component",
+              "responsibility": "保存缓存，并提供示例数据。",
+              "context_refs": [
+                "store"
+              ]
+            },
+            {
+              "id": "scheduler",
+              "label": "scheduler.py · 回调队列",
+              "kind": "component",
+              "responsibility": "保存待执行任务，在 tick() 时取出执行。",
+              "context_refs": [
+                "scheduler"
+              ]
+            },
+            {
+              "id": "request",
+              "label": "request()",
+              "kind": "function",
+              "responsibility": "把键名和调度函数传给 load()，返回读取结果。",
+              "context_refs": [
+                "app"
+              ]
+            },
+            {
+              "id": "load",
+              "label": "load()",
+              "kind": "function",
+              "responsibility": "键存在就返回缓存；否则安排刷新并立即返回 None。",
+              "context_refs": [
+                "service"
+              ]
+            },
+            {
+              "id": "refresh",
+              "label": "refresh()",
+              "kind": "function",
+              "responsibility": "取得新值并写入缓存。",
+              "context_refs": [
+                "service"
+              ]
+            },
+            {
+              "id": "fetch",
+              "label": "fetch()",
+              "kind": "function",
+              "responsibility": "返回由键名拼成的示例值。",
+              "context_refs": [
+                "store"
+              ]
+            },
+            {
+              "id": "schedule",
+              "label": "schedule()",
+              "kind": "function",
+              "responsibility": "将回调和参数加入队列，不立即执行回调。",
+              "context_refs": [
+                "scheduler"
+              ]
+            },
+            {
+              "id": "tick",
+              "label": "tick()",
+              "kind": "function",
+              "responsibility": "取出队列中的一个回调并执行。由外部调用方驱动。",
+              "context_refs": [
+                "scheduler"
+              ]
+            },
+            {
+              "id": "cache",
+              "label": "CACHE · 缓存字典",
+              "kind": "data",
+              "responsibility": "以键名保存结果。原实现也允许键存在但值为 None。",
+              "context_refs": [
+                "store",
+                "service"
+              ]
+            }
+          ],
+          "relations": [
+            {
+              "from": "app",
+              "to": "request",
+              "kind": "contains",
+              "label": "请求入口定义 request()。",
+              "context_refs": [
+                "app"
+              ]
+            },
+            {
+              "from": "service",
+              "to": "load",
+              "kind": "contains",
+              "label": "读取规则由 load() 实现。",
+              "context_refs": [
+                "service"
+              ]
+            },
+            {
+              "from": "service",
+              "to": "refresh",
+              "kind": "contains",
+              "label": "刷新规则由 refresh() 实现。",
+              "context_refs": [
+                "service"
+              ]
+            },
+            {
+              "from": "store",
+              "to": "fetch",
+              "kind": "contains",
+              "label": "数据来源定义 fetch()。",
+              "context_refs": [
+                "store"
+              ]
+            },
+            {
+              "from": "store",
+              "to": "cache",
+              "kind": "contains",
+              "label": "store.py 持有 CACHE 字典。",
+              "context_refs": [
+                "store"
+              ]
+            },
+            {
+              "from": "scheduler",
+              "to": "schedule",
+              "kind": "contains",
+              "label": "schedule() 负责入队。",
+              "context_refs": [
+                "scheduler"
+              ]
+            },
+            {
+              "from": "scheduler",
+              "to": "tick",
+              "kind": "contains",
+              "label": "tick() 负责出队执行。",
+              "context_refs": [
+                "scheduler"
+              ]
+            },
+            {
+              "from": "app",
+              "to": "service",
+              "kind": "depends_on",
+              "label": "请求入口导入服务层的 load()。",
+              "context_refs": [
+                "app"
+              ]
+            },
+            {
+              "from": "service",
+              "to": "store",
+              "kind": "depends_on",
+              "label": "服务层导入缓存和取值函数。",
+              "context_refs": [
+                "service"
+              ]
+            },
+            {
+              "from": "load",
+              "to": "cache",
+              "kind": "reads",
+              "label": "先检查键是否存在，再返回对应值。",
+              "context_refs": [
+                "service"
+              ]
+            },
+            {
+              "from": "refresh",
+              "to": "cache",
+              "kind": "writes",
+              "label": "将 fetch() 的结果写入缓存。",
+              "context_refs": [
+                "service"
+              ]
+            },
+            {
+              "from": "request",
+              "to": "load",
+              "kind": "calls",
+              "label": "请求期间同步调用 load()。",
+              "context_refs": [
+                "app"
+              ]
+            },
+            {
+              "from": "load",
+              "to": "schedule",
+              "kind": "calls",
+              "label": "未找到键时调用传入的 schedule()。",
+              "context_refs": [
+                "service",
+                "scheduler"
+              ]
+            },
+            {
+              "from": "load",
+              "to": "refresh",
+              "kind": "dispatches",
+              "label": "把 refresh 和键名交给队列，稍后由 tick() 调用。",
+              "context_refs": [
+                "service",
+                "scheduler"
+              ]
+            },
+            {
+              "from": "tick",
+              "to": "refresh",
+              "kind": "calls",
+              "label": "取出之前入队的 refresh，传入键名执行。",
+              "context_refs": [
+                "service",
+                "scheduler"
+              ]
+            },
+            {
+              "from": "refresh",
+              "to": "fetch",
+              "kind": "calls",
+              "label": "同步获取新值，返回后再写缓存。",
+              "context_refs": [
+                "service",
+                "store"
+              ]
+            }
+          ],
+          "execution": {
+            "status": "available",
+            "reason": "流程来自四份原始源码；回调场景假定外部调用方随后调用 tick()。没有运行示例业务代码。",
+            "entry": "entry",
+            "steps": [
+              {
+                "id": "entry",
+                "node": "request",
+                "action": "请求读取一个键",
+                "context_refs": [
+                  "app"
+                ]
+              },
+              {
+                "id": "lookup",
+                "node": "load",
+                "action": "检查缓存中是否存在该键",
+                "context_refs": [
+                  "service"
+                ]
+              },
+              {
+                "id": "cached",
+                "node": "request",
+                "action": "收到缓存值，请求结束",
+                "context_refs": [
+                  "app",
+                  "service"
+                ]
+              },
+              {
+                "id": "enqueue",
+                "node": "schedule",
+                "action": "把刷新函数和键名放入队列",
+                "context_refs": [
+                  "scheduler"
+                ]
+              },
+              {
+                "id": "pending",
+                "node": "load",
+                "action": "入队完成，返回 None",
+                "context_refs": [
+                  "service"
+                ]
+              },
+              {
+                "id": "returned",
+                "node": "request",
+                "action": "收到 None，本次请求结束",
+                "context_refs": [
+                  "app",
+                  "service"
+                ]
+              },
+              {
+                "id": "tick",
+                "node": "tick",
+                "action": "稍后由外部调用 tick() 取出任务",
+                "context_refs": [
+                  "scheduler"
+                ]
+              },
+              {
+                "id": "refresh",
+                "node": "refresh",
+                "action": "开始刷新这个键",
+                "context_refs": [
+                  "service"
+                ]
+              },
+              {
+                "id": "fetch",
+                "node": "fetch",
+                "action": "生成示例值并返回",
+                "context_refs": [
+                  "store"
+                ]
+              },
+              {
+                "id": "save",
+                "node": "refresh",
+                "action": "把新值写入缓存",
+                "context_refs": [
+                  "service"
+                ]
+              },
+              {
+                "id": "done",
+                "node": "tick",
+                "action": "回调返回，本次 tick() 结束",
+                "context_refs": [
+                  "scheduler"
+                ]
+              }
+            ],
+            "transitions": [
+              {
+                "from": "entry",
+                "to": "lookup",
+                "kind": "next",
+                "label": "request() 调用 load()。",
+                "context_refs": [
+                  "app"
+                ]
+              },
+              {
+                "from": "lookup",
+                "to": "cached",
+                "kind": "branch",
+                "label": "键存在，包括值为 None 的情况：立即返回。",
+                "context_refs": [
+                  "service"
+                ]
+              },
+              {
+                "from": "lookup",
+                "to": "enqueue",
+                "kind": "branch",
+                "label": "键不存在：调用 schedule() 安排刷新。",
+                "context_refs": [
+                  "service",
+                  "scheduler"
+                ]
+              },
+              {
+                "from": "enqueue",
+                "to": "pending",
+                "kind": "next",
+                "label": "schedule() 返回到 load()。",
+                "context_refs": [
+                  "service",
+                  "scheduler"
+                ]
+              },
+              {
+                "from": "pending",
+                "to": "returned",
+                "kind": "next",
+                "label": "load() 返回到 request()。",
+                "context_refs": [
+                  "app",
+                  "service"
+                ]
+              },
+              {
+                "from": "returned",
+                "to": "tick",
+                "kind": "async",
+                "label": "本次请求已结束；外部调用方之后触发 tick()。",
+                "context_refs": [
+                  "scheduler",
+                  "app"
+                ]
+              },
+              {
+                "from": "tick",
+                "to": "refresh",
+                "kind": "next",
+                "label": "队列非空，调用取出的 refresh(key)。",
+                "context_refs": [
+                  "scheduler",
+                  "service"
+                ]
+              },
+              {
+                "from": "refresh",
+                "to": "fetch",
+                "kind": "next",
+                "label": "调用 fetch(key) 获取值。",
+                "context_refs": [
+                  "service"
+                ]
+              },
+              {
+                "from": "fetch",
+                "to": "save",
+                "kind": "next",
+                "label": "返回新值，继续执行赋值。",
+                "context_refs": [
+                  "store",
+                  "service"
+                ]
+              },
+              {
+                "from": "save",
+                "to": "done",
+                "kind": "next",
+                "label": "refresh() 返回到 tick()。",
+                "context_refs": [
+                  "service",
+                  "scheduler"
+                ]
+              }
+            ],
+            "scenarios": [
+              {
+                "title": "键已存在，但值是 None",
+                "summary": "输入 empty。原逻辑只检查键是否存在，因此直接返回 None，不安排刷新。这正是本次改动要修正的行为。",
+                "walkthrough": [
+                  {
+                    "step": "entry",
+                    "stack": [
+                      "request"
+                    ],
+                    "explanation": "从 request(key, schedule) 进入；此处 schedule 指示例队列的同名函数。",
+                    "context_refs": [
+                      "app",
+                      "scheduler"
+                    ]
+                  },
+                  {
+                    "step": "lookup",
+                    "stack": [
+                      "request",
+                      "load"
+                    ],
+                    "explanation": "request() 等待 load() 返回；此时检查 CACHE 是否包含键。",
+                    "context_refs": [
+                      "service"
+                    ]
+                  },
+                  {
+                    "step": "cached",
+                    "stack": [
+                      "request"
+                    ],
+                    "explanation": "load() 已返回。request() 收到 None；队列没有新增任务。",
+                    "context_refs": [
+                      "service",
+                      "app"
+                    ]
+                  }
+                ]
+              },
+              {
+                "title": "键不存在，先返回，再执行回调",
+                "summary": "输入 new-key。先得到 None；稍后调用一次 tick()，缓存才写入 value:new-key。",
+                "walkthrough": [
+                  {
+                    "step": "entry",
+                    "stack": [
+                      "request"
+                    ],
+                    "explanation": "从 request(key, schedule) 进入；此处 schedule 指示例队列的同名函数。",
+                    "context_refs": [
+                      "app",
+                      "scheduler"
+                    ]
+                  },
+                  {
+                    "step": "lookup",
+                    "stack": [
+                      "request",
+                      "load"
+                    ],
+                    "explanation": "request() 等待 load() 返回；此时检查 CACHE 是否包含键。",
+                    "context_refs": [
+                      "service"
+                    ]
+                  },
+                  {
+                    "step": "enqueue",
+                    "stack": [
+                      "request",
+                      "load",
+                      "schedule"
+                    ],
+                    "explanation": "现在执行 schedule()；只把 refresh 和键名存入队列，没有进入 refresh()。",
+                    "context_refs": [
+                      "service",
+                      "scheduler"
+                    ]
+                  },
+                  {
+                    "step": "pending",
+                    "stack": [
+                      "request",
+                      "load"
+                    ],
+                    "explanation": "schedule() 已返回，队列中有待执行任务；load() 准备返回 None。",
+                    "context_refs": [
+                      "service",
+                      "scheduler"
+                    ]
+                  },
+                  {
+                    "step": "returned",
+                    "stack": [
+                      "request"
+                    ],
+                    "explanation": "load() 已返回。本次请求收到 None，随后 request() 也返回。",
+                    "context_refs": [
+                      "app",
+                      "service"
+                    ]
+                  },
+                  {
+                    "step": "tick",
+                    "stack": [
+                      "tick"
+                    ],
+                    "explanation": "外部调用方稍后进入 tick()。之前的 request() 和 load() 已返回，因此不在当前栈中。",
+                    "context_refs": [
+                      "scheduler"
+                    ]
+                  },
+                  {
+                    "step": "refresh",
+                    "stack": [
+                      "tick",
+                      "refresh"
+                    ],
+                    "explanation": "tick() 正在等待 refresh() 执行完毕。",
+                    "context_refs": [
+                      "scheduler",
+                      "service"
+                    ]
+                  },
+                  {
+                    "step": "fetch",
+                    "stack": [
+                      "tick",
+                      "refresh",
+                      "fetch"
+                    ],
+                    "explanation": "fetch() 为 new-key 生成 value:new-key；调用者等待取值。",
+                    "context_refs": [
+                      "store",
+                      "service"
+                    ]
+                  },
+                  {
+                    "step": "save",
+                    "stack": [
+                      "tick",
+                      "refresh"
+                    ],
+                    "explanation": "fetch() 已返回，现在把 value:new-key 写入 CACHE。",
+                    "context_refs": [
+                      "service"
+                    ]
+                  },
+                  {
+                    "step": "done",
+                    "stack": [
+                      "tick"
+                    ],
+                    "explanation": "refresh() 已返回，本次 tick() 结束；以后读取 new-key 可以直接得到缓存。",
+                    "context_refs": [
+                      "scheduler",
+                      "service"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "entry_points": [
+        "request(key, schedule)"
+      ],
+      "call_path": [
+        "request()",
+        "load()",
+        "schedule()",
+        "稍后 tick() → refresh() → fetch()"
+      ],
+      "mechanism_steps": [
+        "读取仍从 request() 进入 load()。",
+        "条件增加对 None 的排除；键存在但值为 None 时也会进入刷新分支。",
+        "schedule() 仍只入队，本次读取返回 None；tick() 随后执行刷新。"
+      ],
+      "invariants": [
+        {
+          "status": "preserved",
+          "statement": "读取时不等待刷新完成。",
+          "evidence_refs": [
+            "F01-H01",
+            "service"
+          ]
+        }
+      ],
+      "consumers": [
+        "request() 调用方"
+      ],
+      "compatibility": [
+        "函数参数和返回约定未变。"
+      ],
+      "claims": [
+        {
+          "key": "condition",
+          "statement": "直接返回分支排除了值为 None 的情况。",
+          "kind": "observed",
+          "confidence": "high"
+        },
+        {
+          "key": "queue",
+          "statement": "schedule() 只保存回调；tick() 才执行回调。",
+          "kind": "contextual",
+          "evidence_refs": [
+            "scheduler"
+          ],
+          "confidence": "high"
+        }
+      ],
+      "failure_modes": [
+        {
+          "key": "no-tick",
+          "trigger": "外部调用方没有调用 tick()",
+          "effect": "队列中的刷新一直不会执行",
+          "detection_or_mitigation": "检查调度调用方，并验证入队后能执行回调。",
+          "evidence_refs": [
+            "scheduler"
+          ],
+          "claim_refs": [
+            "queue"
+          ]
+        }
+      ],
+      "unknowns": [
+        "示例未提供外部调用方如何定期驱动 tick()；这里不声称它会自动运行。"
+      ],
+      "symbols": [
+        "request",
+        "load",
+        "refresh",
+        "schedule",
+        "tick",
+        "fetch",
+        "CACHE"
+      ],
+      "evidence": [
+        {
+          "id": "F01-H01",
+          "label": "排除值为 None 的缓存",
+          "summary": "直接返回前增加非 None 条件。"
+        }
+      ],
+      "checks": [
+        {
+          "key": "empty-cache",
+          "label": "检查空缓存会安排刷新",
+          "setup": "令 CACHE['empty'] 为 None，清空 QUEUE。",
+          "action": "调用 request('empty', schedule)，然后调用 tick()。",
+          "expected": "请求先返回 None，tick() 后缓存变为 value:empty。",
+          "claim_refs": [
+            "condition",
+            "queue"
+          ]
+        }
+      ]
+    }
+  ],
+  "findings": [],
+  "verification": [
+    {
+      "key": "demo-check",
+      "behavior": "空缓存触发异步刷新。",
+      "status": "not_run",
+      "existing_evidence": "仅检查静态源码与示例补丁。",
+      "setup": "令 CACHE['empty'] 为 None，清空 QUEUE。",
+      "action": "调用 request('empty', schedule)，然后调用 tick()。",
+      "expected": "请求先返回 None，tick() 后缓存变为 value:empty。",
+      "claim_refs": [
+        "condition",
+        "queue"
+      ],
+      "unit_refs": [
+        "cache-refresh"
+      ]
+    }
+  ]
+}
