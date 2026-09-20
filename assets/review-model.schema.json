@@ -5,7 +5,7 @@
   "type": "object",
   "required": ["schema_version", "report", "source_artifacts", "summary", "outcome", "context_sources", "requirements", "files", "units", "evidence_ledger", "findings", "verification", "coverage"],
   "properties": {
-    "schema_version": { "enum": ["1.3", "1.4", "1.5", "1.6"] },
+    "schema_version": { "enum": ["1.3", "1.4", "1.5", "1.6", "1.7"] },
     "report": {
       "type": "object",
       "required": ["id", "repository", "selector", "source_artifact_ids", "diff_digest", "diff_bytes", "mutable", "drift", "scope_exclusions"],
@@ -138,6 +138,7 @@
         "id": { "type": "string", "pattern": "^C[0-9]{2,}$" },
         "kind": { "enum": ["definition", "caller", "callee", "test", "schema", "configuration", "documentation"] },
         "snapshot": { "enum": ["base", "head", "working_tree", "index", "provider", "patch"] },
+        "side": { "enum": ["before", "after"] },
         "revision": { "type": "string", "minLength": 1 },
         "path": { "type": "string", "minLength": 1 },
         "locator": { "type": "string", "minLength": 1 },
@@ -363,6 +364,20 @@
       },
       "additionalProperties": false
     },
+    "scenario_comparison": {
+      "type": "object",
+      "required": ["scenario", "input", "before", "after", "impact", "before_context_refs", "after_context_refs"],
+      "properties": {
+        "scenario": { "type": "string", "minLength": 1 },
+        "input": { "type": "string", "minLength": 1 },
+        "before": { "type": "string", "minLength": 1 },
+        "after": { "type": "string", "minLength": 1 },
+        "impact": { "type": "string", "minLength": 1 },
+        "before_context_refs": { "$ref": "#/$defs/nonempty_unique_strings" },
+        "after_context_refs": { "$ref": "#/$defs/nonempty_unique_strings" }
+      },
+      "additionalProperties": false
+    },
     "completeness": {
       "type": "object",
       "required": ["contract", "entry_points", "call_path", "mechanism", "invariants", "consumers", "compatibility", "failure_modes", "checks", "unknowns"],
@@ -393,6 +408,8 @@
         "after": { "type": "string", "minLength": 1 },
         "background": { "type": "string", "minLength": 1 },
         "baseline": { "$ref": "#/$defs/baseline" },
+        "post_change": { "$ref": "#/$defs/baseline" },
+        "comparison": { "type": "array", "items": { "$ref": "#/$defs/scenario_comparison" }, "minItems": 1 },
         "entry_points": { "$ref": "#/$defs/unique_strings" },
         "call_path": { "type": "array", "items": { "type": "string" } },
         "mechanism_steps": { "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 7 },

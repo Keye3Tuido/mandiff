@@ -48,6 +48,7 @@ PLACEHOLDERS = {
     "<include only decision-relevant context>",
     "<state the evidence-backed review disposition>",
     "<explain where the original behavior sits in the system>",
+    "<explain the system after the change>",
 }
 HUNK_LOCATOR = re.compile(r"@@[^@]*@@\s*(.*)$")
 GENERIC_PHRASES = ("verify correctness", "may break", "works as expected", "review changes")
@@ -404,6 +405,14 @@ def _scaffold_units(inventory: dict[str, Any]) -> list[dict[str, Any]]:
                         "data_and_state": [],
                         "context_refs": [],
                     },
+                    "post_change": {
+                        "architecture": "<explain the system after the change>",
+                        "responsibilities": [],
+                        "flow_steps": [],
+                        "data_and_state": [],
+                        "context_refs": [],
+                    },
+                    "comparison": [],
                     "mechanism_steps": [],
                     "evidence": [_evidence_spec(item) for item in items],
                 }
@@ -430,6 +439,7 @@ def _context_candidates(repo: Optional[Path], evidence: list[dict[str, Any]]) ->
 
 def prepare(args: argparse.Namespace) -> Path:
     started = time.perf_counter()
+    started_at = time.time()
     repo, sources, aggregate = _capture_sources(args)
     digest_input = b"\0".join(source["raw"] for source in sources)
     report_id = hashlib.sha256(digest_input).hexdigest()[:12]
@@ -535,7 +545,7 @@ def prepare(args: argparse.Namespace) -> Path:
         raise
     _write_json(output / "inventory.json", inventory)
     draft = {
-        "schema_version": "2.0",
+        "schema_version": "2.1",
         "recommendation": {
             "disposition": "expand_scope",
             "reason": "<state the evidence-backed review disposition>",
@@ -566,9 +576,12 @@ def prepare(args: argparse.Namespace) -> Path:
         "references": {"claim_refs": "local claim key or unit-key.claim-key", "failure_refs": "local failure key or owning-unit.failure-key", "context_refs": "context source keys", "evidence": "inventory evidence IDs"},
         "optional_views": "Combine baseline.views (table, sequence, state, relationships) with baseline.guide (diagrams and scenario/stack navigation) as needed. Select guide.views from structure, calls, flow. Core guides are expanded; use guide.expanded=false only for supplementary detail.",
         "view_rows": "from, label, to, context_refs; columns label those three values in that order. View-level context_refs may supply a shared default.",
+        "before_after": "Main units need baseline and post_change with matching structure, plus comparison rows: scenario, input, before, after, impact, before_context_refs, after_context_refs. Explain both under the same input; cite the corresponding snapshots. Patch/provider excerpts also need side=before or side=after.",
         "depth": "Choose the number, scope and detail of diagrams/scenarios by comprehension needs, uncertainty and consequence. Save time through shared evidence and fewer retries; do not drop useful views merely for speed or small line count.",
+        "presentation": "Use matching section order, diagram types and abstraction levels, table columns/row subjects, and scenario inputs on both sides. Explain necessary differences in captions. Show concrete relevant input/state/output values, with types, defaults or units where they affect the result; label constructed examples as examples.",
+        "time_budget": "Target delivery within 600 seconds from starting prepare. Run status after source analysis and before finalize. Aim to finish source analysis by minute 4, semantic drafting by minute 8, and reserve 2 minutes for validation and delivery. Preserve useful views and exact evidence; state unresolved questions if more time is needed.",
     })
-    _write_json(output / "performance.json", {"prepared_at": time.time(), "prepare_seconds": round(time.perf_counter() - started, 6), "finalize_attempts": []})
+    _write_json(output / "performance.json", {"started_at": started_at, "prepared_at": time.time(), "target_seconds": 600, "prepare_seconds": round(time.perf_counter() - started, 6), "finalize_attempts": []})
     return output
 
 
@@ -598,7 +611,8 @@ def _draft_enum_errors(draft: dict[str, Any]) -> list[str]:
     for index, unit in enumerate(draft.get("units", [])):
         check("claim", unit.get("claims", []), f"units[{index}].claims")
         check("invariant", unit.get("invariants", []), f"units[{index}].invariants")
-        check("context_view", unit.get("baseline", {}).get("views", []), f"units[{index}].baseline.views")
+        for side in ("baseline", "post_change"):
+            check("context_view", unit.get(side, {}).get("views", []), f"units[{index}].{side}.views")
     return errors
 
 
@@ -736,8 +750,8 @@ def _completeness(unit: dict[str, Any]) -> dict[str, str]:
 def _expand_draft(draft: dict[str, Any], inventory: dict[str, Any]) -> dict[str, Any]:
     if draft.get("schema_version") == "1.0":
         return copy.deepcopy(draft)
-    if draft.get("schema_version") != "2.0":
-        raise SystemExit("analysis-draft.json: schema_version must be '2.0'")
+    if draft.get("schema_version") not in {"2.0", "2.1"}:
+        raise SystemExit("analysis-draft.json: schema_version must be '2.0' or '2.1'")
     placeholders = _placeholder_errors(draft)
     if placeholders:
         raise SystemExit("Unresolved analysis placeholders:\n- " + "\n- ".join(placeholders))
@@ -820,20 +834,25 @@ def _expand_draft(draft: dict[str, Any], inventory: dict[str, Any]) -> dict[str,
                 "evidence": evidence_specs,
             }
         )
-        baseline = item.get("baseline", {})
-        if baseline:
-            baseline["context_refs"] = _resolve_refs(
-                baseline.get("context_refs", []), {}, global_refs, f"{key}.baseline.context_refs"
-            )
-            for record in guide_records(baseline.get("guide", {})):
-                record["context_refs"] = _resolve_refs(
-                    record.get("context_refs", []), {}, global_refs, f"{key}.baseline.guide"
+        for side in ("baseline", "post_change"):
+            baseline = item.get(side, {})
+            if baseline:
+                baseline["context_refs"] = _resolve_refs(
+                    baseline.get("context_refs", []), {}, global_refs, f"{key}.{side}.context_refs"
                 )
-            for view in baseline.get("views", []):
-                default_refs = view.pop("context_refs", [])
-                for row in view.get("rows", []):
-                    row["context_refs"] = _resolve_refs(row.get("context_refs", default_refs), {}, global_refs, f"{key}.baseline.views")
-            item["baseline"] = baseline
+                for record in guide_records(baseline.get("guide", {})):
+                    record["context_refs"] = _resolve_refs(
+                        record.get("context_refs", []), {}, global_refs, f"{key}.{side}.guide"
+                    )
+                for view in baseline.get("views", []):
+                    default_refs = view.pop("context_refs", [])
+                    for row in view.get("rows", []):
+                        row["context_refs"] = _resolve_refs(row.get("context_refs", default_refs), {}, global_refs, f"{key}.{side}.views")
+                item[side] = baseline
+        for row in item.get("comparison", []):
+            for side in ("before", "after"):
+                field = f"{side}_context_refs"
+                row[field] = _resolve_refs(row.get(field, []), {}, global_refs, f"{key}.comparison.{field}")
         item["depends_on"] = [unit_keys.get(value, value) for value in item.get("depends_on", [])]
         local_refs: dict[str, str] = {}
         claims = []
@@ -994,6 +1013,7 @@ def _expand_draft(draft: dict[str, Any], inventory: dict[str, Any]) -> dict[str,
     outcome["recommendation"] = recommendation
     return {
         "schema_version": "1.0",
+        "report_schema_version": "1.7" if draft.get("schema_version") == "2.1" or any("post_change" in unit for unit in units) else "1.6",
         "outcome": outcome,
         "context_sources": contexts,
         "requirements": requirements,
@@ -1008,6 +1028,18 @@ def _lint_warnings(draft: dict[str, Any]) -> list[str]:
     statements: dict[str, str] = {}
     for index, unit in enumerate(draft.get("units", []), start=1):
         key = unit.get("key", f"unit-{index}")
+        if unit.get("baseline") and unit.get("post_change"):
+            def forms(context):
+                result = {view["kind"] for view in context.get("views", [])}
+                guide = context.get("guide")
+                if guide:
+                    result.update("diagram:" + kind for kind in guide.get("views", ["structure", "calls", "flow"]))
+                    if guide.get("execution", {}).get("status") == "available":
+                        result.add("scenario/stack")
+                return result
+            missing = forms(unit["baseline"]) - forms(unit["post_change"])
+            if missing:
+                warnings.append(f"{key}.post_change: original forms absent after change: {', '.join(sorted(missing))}; restore useful counterparts or explain the difference in captions")
         for field in ("title", "question", "contract", "before", "after", "background"):
             value = unit.get(field, "")
             lowered = value.lower() if isinstance(value, str) else ""
@@ -1047,6 +1079,7 @@ def finalize(workdir: Path) -> tuple[Path, list[str]]:
     started = time.perf_counter()
     metrics_path = workdir / "performance.json"
     metrics = _load_json(metrics_path) if metrics_path.exists() else {"finalize_attempts": []}
+    prior_success = any(item.get("status") == "success" for item in metrics["finalize_attempts"])
     attempt = {"status": "failed", "stages_seconds": {}}
     if metrics.get("prepared_at") and not metrics["finalize_attempts"]:
         metrics["prepare_to_first_finalize_seconds"] = round(time.time() - metrics["prepared_at"], 3)
@@ -1056,7 +1089,11 @@ def finalize(workdir: Path) -> tuple[Path, list[str]]:
         return result
     finally:
         attempt["total_seconds"] = round(time.perf_counter() - started, 6)
+        attempt["finished_at"] = time.time()
         metrics["finalize_attempts"].append(attempt)
+        # Preserve the first successful delivery time across later report edits.
+        if attempt["status"] == "success" and not prior_success:
+            metrics["first_success_at"] = attempt["finished_at"]
         if workdir.is_dir():
             _write_json(metrics_path, metrics)
 
@@ -1082,10 +1119,22 @@ def _finalize(workdir: Path, stages: dict[str, float]) -> tuple[Path, list[str]]
     placeholders = _placeholder_errors(draft)
     if placeholders:
         raise SystemExit("Unresolved analysis placeholders:\n- " + "\n- ".join(placeholders))
+    declarations = copy.deepcopy(draft.get("context_sources", []))
     _freeze_context_sources(draft, state)
-    draft = _redact_strings(draft, _redaction_values(state))
+    redactions = _redaction_values(state)
+    draft = _redact_strings(draft, redactions)
     mark("context_and_redaction")
-    _write_json(draft_path, draft)
+    author_draft = copy.deepcopy(draft)
+    for declaration, source in zip(declarations, author_draft.get("context_sources", [])):
+        # Only immutable Git ranges can be reacquired safely. Keep supplied,
+        # mutable and redacted excerpts frozen, including after private cleanup.
+        if ("excerpt" not in declaration and not redactions and not state.get("private_cleaned")
+                and source.get("snapshot") in {"base", "head"}
+                and re.fullmatch(r"[0-9a-f]{40,64}", source.get("revision", ""))):
+            source.pop("excerpt", None)
+            source.pop("start_line", None)
+            source.update(start=declaration["start"], lines=declaration["lines"])
+    _write_json(draft_path, author_draft)
     analysis = _expand_draft(draft, inventory)
     analysis_path = workdir / "analysis.json"
     _write_json(analysis_path, analysis)
@@ -1123,6 +1172,30 @@ def cleanup(workdir: Path) -> bool:
     return True
 
 
+def progress(workdir: Path) -> dict[str, Any]:
+    metrics = _load_json(workdir / "performance.json")
+    start = metrics.get("started_at")
+    if start is None and metrics.get("prepared_at") is not None:
+        start = metrics["prepared_at"] - metrics.get("prepare_seconds", 0)
+    elapsed = max(0, time.time() - start) if start is not None else None
+    target = metrics.get("target_seconds", 600)
+    successes = [item for item in metrics.get("finalize_attempts", []) if item.get("status") == "success"]
+    # Old measurements lack completion timestamps; do not date their original
+    # delivery from a later edit or claim that the deadline was met.
+    first = metrics.get("first_success_at") if successes and successes[0].get("finished_at") is not None else None
+    duration = max(0, first - start) if first is not None and start is not None else None
+    return {
+        "timing_scope": "prepare start to first successful finalize; excludes work before prepare and delivery after finalize",
+        "target_seconds": target,
+        "elapsed_seconds": round(elapsed, 3) if elapsed is not None else None,
+        "remaining_seconds": round(max(0, target - elapsed), 3) if elapsed is not None else None,
+        "phase": "complete" if successes else "timing_unavailable" if elapsed is None else "over_target" if elapsed >= target else "finalize_now" if elapsed >= target - 120 else "analyzing",
+        "finalize_attempts": len(metrics.get("finalize_attempts", [])),
+        "first_success_seconds": round(duration, 3) if duration is not None else None,
+        "met_target": duration <= target if duration is not None else None,
+    }
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -1148,6 +1221,8 @@ def _parser() -> argparse.ArgumentParser:
     finalize_parser.add_argument("workdir", type=Path)
     cleanup_parser = commands.add_parser("cleanup", help="remove private redaction material from an abandoned review")
     cleanup_parser.add_argument("workdir", type=Path)
+    status_parser = commands.add_parser("status", help="show elapsed time and remaining 10-minute report budget")
+    status_parser.add_argument("workdir", type=Path)
     return parser
 
 
@@ -1162,10 +1237,14 @@ def main() -> None:
         removed = cleanup(args.workdir)
         print("Removed private ManDiff material." if removed else "No private ManDiff material was present.")
         return
+    if args.command == "status":
+        print(json.dumps(progress(args.workdir), ensure_ascii=False, indent=2))
+        return
     report, warnings = finalize(args.workdir)
     for warning in warnings:
         print(f"Warning: {warning}", file=sys.stderr)
     print(f"Finalized ManDiff review: {report.parent / 'review.html'}")
+    print(json.dumps(progress(args.workdir), ensure_ascii=False))
 
 
 if __name__ == "__main__":

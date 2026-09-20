@@ -35,6 +35,6 @@ const renderContextViews = (host, baseline, sources, version) => {
         rendered = true;
       }
     });
-    if (baseline.guide.expanded !== false || version !== '1.6') { details.open = true; renderContextGuide(details.querySelector('div'), baseline.guide, sources); rendered = true; }
-  } else if (!views.length && version !== '1.6') renderContextGuide(host, null, sources);
+    if (baseline.guide.expanded !== false || !['1.6', '1.7'].includes(version)) { details.open = true; renderContextGuide(details.querySelector('div'), baseline.guide, sources); rendered = true; }
+  } else if (!views.length && !['1.6', '1.7'].includes(version)) renderContextGuide(host, null, sources);
 };

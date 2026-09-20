@@ -5,12 +5,13 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from mandiff import _parser, _scaffold_units, _support_category, cleanup, finalize, prepare  # noqa: E402
+from mandiff import _parser, _scaffold_units, _support_category, cleanup, finalize, prepare, progress  # noqa: E402
 
 
 PIPELINE_DIFF = ROOT / "tests" / "fixtures" / "pipeline.diff"
@@ -54,7 +55,9 @@ class ManDiffWorkflowTests(unittest.TestCase):
             inventory = json.loads((output / "inventory.json").read_text(encoding="utf-8"))
             draft = json.loads((output / "analysis-draft.json").read_text(encoding="utf-8"))
             self.assertEqual([item["evidence_id"] for item in inventory["evidence"]], ["F01-H01"])
-            self.assertEqual(draft["schema_version"], "2.0")
+            self.assertEqual(draft["schema_version"], "2.1")
+            self.assertIn("post_change", draft["units"][0])
+            self.assertIn("comparison", draft["units"][0])
             self.assertEqual(draft["units"][0]["evidence"][0]["id"], "F01-H01")
 
     def test_prepare_refuses_output_inside_reviewed_repository(self):
@@ -220,6 +223,119 @@ class ManDiffWorkflowTests(unittest.TestCase):
             self.assertEqual(report["context_sources"][0]["revision"], base)
             self.assertEqual(report["context_sources"][0]["excerpt"], "old\n")
             self.assertEqual(report["context_sources"][0]["start_line"], 1)
+            saved = json.loads((output / "analysis-draft.json").read_text())
+            self.assertNotIn("excerpt", saved["context_sources"][0])
+            self.assertEqual(saved["context_sources"][0]["start"], 1)
+            self.assertEqual(saved["context_sources"][0]["revision"], base)
+            # Retrying does not grow the draft or change frozen evidence.
+            repeated, _ = finalize(output)
+            self.assertEqual(json.loads(repeated.read_text()), report)
+            self.assertEqual(json.loads((output / "analysis-draft.json").read_text()), saved)
+
+    def test_mutable_context_stays_frozen_in_draft(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = self._git_repo(root)
+            (repo / "value.txt").write_text("new\n")
+            output = root / "review"
+            prepare(_parser().parse_args(["prepare", "--repo", str(repo), "--unstaged", "--output", str(output)]))
+            draft = json.loads(PIPELINE_DRAFT.read_text())
+            source = draft["context_sources"][0]
+            source.pop("excerpt")
+            source.update(snapshot="index", revision="INDEX", path="value.txt", start=1, lines=1)
+            (output / "analysis-draft.json").write_text(json.dumps(draft))
+            finalize(output)
+            saved = json.loads((output / "analysis-draft.json").read_text())
+            self.assertEqual(saved["context_sources"][0]["excerpt"], "old\n")
+            self.assertNotIn("lines", saved["context_sources"][0])
+
+    def test_redacted_git_context_is_not_reacquired_after_secret_cleanup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = self._git_repo(root)
+            secret = "fixture-context-secret"
+            (repo / "value.txt").write_text(secret + "\n")
+            run(["git", "commit", "-am", "private"], repo)
+            base = run(["git", "rev-parse", "HEAD"], repo)
+            (repo / "value.txt").write_text("new\n")
+            run(["git", "commit", "-am", "remove private"], repo)
+            output = root / "review"
+            redactions = root / "redactions.json"
+            redactions.write_text(json.dumps({"values": [secret]}))
+            prepare(_parser().parse_args(["prepare", "--repo", str(repo), "--commit", "HEAD", "--output", str(output), "--redactions", str(redactions)]))
+            draft = json.loads(PIPELINE_DRAFT.read_text())
+            source = draft["context_sources"][0]
+            source.pop("excerpt")
+            source.update(snapshot="base", revision=base, path="value.txt", start=1, lines=1)
+            (output / "analysis-draft.json").write_text(json.dumps(draft))
+            for _ in range(2):
+                finalize(output)
+                for name in ("analysis-draft.json", "analysis.json", "review.json", "review.html", "review.md"):
+                    self.assertNotIn(secret, (output / name).read_text())
+            saved = json.loads((output / "analysis-draft.json").read_text())
+            self.assertEqual(saved["context_sources"][0]["excerpt"], "[REDACTED]\n")
+
+    def test_budget_counts_waiting_and_preserves_first_delivery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "review"
+            self._prepare_patch(output)
+            metrics_path = output / "performance.json"
+            metrics = json.loads(metrics_path.read_text())
+            metrics.update(started_at=1000, prepared_at=1001)
+            metrics_path.write_text(json.dumps(metrics))
+            for now, phase, remaining in ((1479, "analyzing", 121), (1480, "finalize_now", 120), (1601, "over_target", 0)):
+                with patch("mandiff.time.time", return_value=now):
+                    status = progress(output)
+                self.assertEqual(status["phase"], phase)
+                self.assertEqual(status["remaining_seconds"], remaining)
+                self.assertIsNone(status["met_target"])
+            shutil.copyfile(PIPELINE_DRAFT, output / "analysis-draft.json")
+            with patch("mandiff.time.time", return_value=1550):
+                finalize(output)
+            with patch("mandiff.time.time", return_value=1700):
+                finalize(output)
+                status = progress(output)
+            self.assertEqual(status["first_success_seconds"], 550)
+            self.assertTrue(status["met_target"])
+            self.assertEqual(status["finalize_attempts"], 2)
+            self.assertEqual(status["phase"], "complete")
+
+    def test_failed_finalize_counts_toward_budget_not_delivery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "review"
+            self._prepare_patch(output)
+            with self.assertRaises(SystemExit):
+                finalize(output)
+            status = progress(output)
+            self.assertEqual(status["finalize_attempts"], 1)
+            self.assertIsNone(status["first_success_seconds"])
+            self.assertIsNone(status["met_target"])
+
+    def test_legacy_timing_does_not_invent_first_delivery_time(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "review"
+            self._prepare_patch(output)
+            metrics = {"prepared_at": 1001, "prepare_seconds": 1, "finalize_attempts": [{"status": "success", "total_seconds": 0.02}]}
+            (output / "performance.json").write_text(json.dumps(metrics))
+            shutil.copyfile(PIPELINE_DRAFT, output / "analysis-draft.json")
+            finalize(output)
+            status = progress(output)
+            self.assertEqual(status["phase"], "complete")
+            self.assertIsNone(status["first_success_seconds"])
+            self.assertIsNone(status["met_target"])
+
+    def test_legacy_review_without_performance_file_can_finalize_and_report_status(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "review"
+            self._prepare_patch(output)
+            (output / "performance.json").unlink()
+            shutil.copyfile(PIPELINE_DRAFT, output / "analysis-draft.json")
+            result = subprocess.run([sys.executable, str(ROOT / "scripts/mandiff.py"), "finalize", str(output)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            status = progress(output)
+            self.assertEqual(status["phase"], "complete")
+            for field in ("elapsed_seconds", "remaining_seconds", "first_success_seconds", "met_target"):
+                self.assertIsNone(status[field])
 
     def test_redaction_hides_values_and_cleans_private_material_after_finalize(self):
         with tempfile.TemporaryDirectory() as directory:

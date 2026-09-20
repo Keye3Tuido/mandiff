@@ -43,7 +43,7 @@ Show defects, risks, design questions, and missing context as a selectable queue
 
 When the host supports an inline interactive view, make review units selectable. The selected unit must show, in this order:
 
-1. a visible pre-change baseline: architecture position, component responsibilities, original control/data flow, data/state ownership, and frozen context excerpts;
+1. a before/after context panel: architecture position, responsibilities, control/data flow, state ownership, selected diagrams/scenarios/stacks, and the matching frozen excerpts; followed by same-input results and their impact;
 2. the review question;
 3. the behavior contract and symmetrical before/after behavior;
 4. entry point, direct call path, required context, and dependencies;
@@ -57,6 +57,8 @@ When the host supports an inline interactive view, make review units selectable.
 Keep the pre-change overview visible. A reviewer should understand the original behavior without opening the diff. Put frozen excerpts behind source disclosures, so inspecting hundreds of source lines does not prevent seeing the big picture.
 
 Before the diff, combine the context representations selected under [presentation.md](presentation.md). `baseline.views` provides tables or numbered interactions. `baseline.guide` provides diagrams and scenario/stack navigation, expanded by default before the tables; `guide.views` controls which graph types are drawn. Use `guide.expanded: false` only for supplementary detail and render that guide on demand. Diagrams remain offline SVG with keyboard-accessible node/arrow/source controls and honest source-derived stack labels.
+
+Schema 1.7 provides the same presentation for `post_change`. The before/after controls switch the entire context panel: architecture, responsibilities, state, steps, selected diagrams, scenario stacks and frozen source. Render one active panel to keep node and SVG IDs isolated. Keep the same-input `comparison` table visible before the diff. A legacy report with no post_change disables that control and explicitly states the missing walkthrough; it must not render an inferred one.
 
 Every visible reference must decode the stable ID inline: show the source path and line when available, followed by a one-line statement of what that reference establishes. A bare identifier is never sufficient UI copy. In interactive output, selecting changed evidence must open its owning review unit, show the complete exact diff, and locate the referenced hunk.
 

@@ -58,11 +58,15 @@ If one unit contains both staged and unstaged evidence, freeze both required pre
 
 ### 3. Edit semantic data once
 
+Establish the changed system with the same structure in `post_change`: architecture, responsibilities, flow_steps, data_and_state, context_refs, and selected views/guide. For commit/range use snapshot `head` at the selected result SHA; staged uses `index` at `INDEX`; unstaged uses `working_tree` at `WORKTREE`. In a mixed unit, provide both result snapshots or separate the units. For standalone patch/provider excerpts, declare `side: before` / `side: after` and the correct version. Frozen Git context revisions must match the corresponding source artifact's base/head. Even unchanged code cited after the change must be acquired at the result version.
+
+Add `comparison` rows for the same input before/after. See [presentation.md](presentation.md) for the fields and rules. A short `after` summary or mechanism list alone does not complete the post-change walkthrough.
+
 Read `inventory.json`, `context-candidates.json`, and each selected hunk. Correct the proposed groups and edit only `analysis-draft.json`.
 
 Determine the report language from the predominant language of the current conversation; an explicit user request overrides that default. Use it for all human-facing semantic prose. Write that prose in plain, precise, direct, and unambiguous language: prefer concrete subjects, actions, conditions, and results; keep sentences short where possible; use technical terms only when they add precision; explain each necessary term at first use; and never invent terminology or concepts. When the evidence is insufficient, say that the point is unknown or unverified. Do not infer the report language from the diff, repository, commit message, or English example. Keep code, symbols, paths, commands, source quotations, and fixed enum values unchanged where translation would reduce precision. Rewrite scaffold titles, labels, summaries, and placeholders that do not match the chosen language.
 
-The draft uses `schema_version: "2.0"` and semantic keys instead of final report IDs. Use `tests/fixtures/concise-draft.json` for a simple change, and the generated `authoring-help.json` for allowed enums and references. Only open the larger graph example when necessary.
+New drafts use `schema_version: "2.1"` and semantic keys instead of final report IDs. Use `tests/fixtures/paired-draft.json` for a simple before/after example, and `authoring-help.json` for enums and references. Completed 2.0 drafts retain the legacy 1.6 path; new drafts must not be downgraded to omit the changed-system explanation.
 
 Agent-authored content is limited to:
 
@@ -82,7 +86,7 @@ Do not author:
 - files, changed-line counts, exact unit diffs, segments, anchors, ownership, ledger, summary, digest, or coverage;
 - Markdown or HTML.
 
-Context can include an excerpt directly. To let the script acquire it, supply exact `revision`, `path`, one-based `start`, and `lines`; `finalize` freezes and fingerprints that range. `INDEX` is accepted for an unstaged baseline. `WORKTREE` remains available for non-baseline context, but a main-unit baseline cannot cite it as the original behavior. Other values resolve to exact commits.
+Context can include an excerpt directly. Prefer supplying exact `revision`, `path`, one-based `start`, and `lines`; `finalize` freezes and fingerprints that range. Unredacted immutable Git ranges remain as declarations in `analysis-draft.json`, with the resolved revision pinned; the full excerpt lives in `analysis.json` and the report. Mutable, supplied, or redacted excerpts stay frozen in the draft to avoid changing evidence or exposing secrets on a retry. Edit the compact draft, not generated analysis. `INDEX` is accepted for an unstaged baseline. `WORKTREE` remains available for post-change context, but a main-unit baseline cannot cite it as the original behavior. Other values resolve to exact commits.
 
 ### 4. Finalize
 
@@ -97,13 +101,15 @@ The command:
 3. resolves semantic keys and assigns stable final IDs;
 4. derives completeness and outcome aggregation;
 5. expands the compact draft into `analysis.json` schema 1.0;
-6. compiles and validates canonical `review.json` schema 1.6; when graphs are supplied, their references, reachability, scenarios, and stacks remain validated;
+6. compiles and validates canonical `review.json` schema 1.7, including both versions' frozen context and matching comparison references; supplied graphs, scenarios and stacks are validated independently on each side;
 7. renders `review.md` and self-contained `review.html`;
 8. removes private redaction material after success.
 
 Fix only the reported draft or validation error, then rerun `finalize`. Do not repeat evidence discovery.
 
-`performance.json` records preparation and each finalize attempt, including failed attempts. The prepare-to-first-finalize gap includes human/model work, permission waiting and idle time; it is not a precise attribution to any one cause. Script timings exclude that gap. Do not conflate fast compilation with fast end-to-end generation.
+Use `mandiff.py status <review-directory>` after source analysis and before finalization. The default target is 600 seconds from starting prepare to the first successful finalize. At eight minutes it reports `finalize_now`, at ten `over_target`; these are progress signals, not a process timeout. Reserve time for validation and delivery, keep useful paired views, and state any unresolved blocking question if the target cannot be met. Do not reset the work directory or timer to hide overruns.
+
+`performance.json` records preparation and each finalize attempt, including failed attempts, and preserves the first successful finalize time across later edits. The prepare-to-first-finalize gap includes human/model work, permission waiting and idle time; it is not a precise attribution to any one cause. Work before prepare and handoff after finalize are outside the recorded interval. Script timings exclude the gap. Do not conflate fast compilation or a reused demonstration with a fresh end-to-end review under ten minutes.
 
 ## Compact references
 

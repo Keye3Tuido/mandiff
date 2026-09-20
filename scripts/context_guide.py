@@ -17,14 +17,14 @@ def guide_records(guide: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def validate_guide(unit: dict[str, Any], report: dict[str, Any]) -> list[str]:
-    baseline = unit.get("baseline", {})
+def validate_guide(unit: dict[str, Any], report: dict[str, Any], side: str = "baseline") -> list[str]:
+    baseline = unit.get(side, {})
     guide = baseline.get("guide")
-    required = report["schema_version"] == "1.5" and unit["lane"] == "main" and unit["importance"] in {"critical", "normal"}
+    required = side == "baseline" and report["schema_version"] == "1.5" and unit["lane"] == "main" and unit["importance"] in {"critical", "normal"}
     if not guide:
         return [f"{unit['id']}.baseline.guide: architecture and execution guide required"] if required else []
     errors: list[str] = []
-    prefix = f"{unit['id']}.baseline.guide"
+    prefix = f"{unit['id']}.{side}.guide"
 
     def fail(message: str) -> None:
         errors.append(f"{prefix}: {message}")
@@ -40,7 +40,7 @@ def validate_guide(unit: dict[str, Any], report: dict[str, Any]) -> list[str]:
     known_refs = set(baseline.get("context_refs", []))
     for record in guide_records(guide):
         if not set(record["context_refs"]).issubset(known_refs):
-            fail("every diagram and walkthrough reference must belong to baseline.context_refs")
+            fail(f"every diagram and walkthrough reference must belong to {side}.context_refs")
     nodes = indexed(guide["nodes"], "node")
     calls = set()
     connected = set()

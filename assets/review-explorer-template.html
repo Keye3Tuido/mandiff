@@ -91,6 +91,7 @@
     .badge { display: inline-flex; align-items: center; width: fit-content; min-height: 24px; background: var(--soft); border-radius: 999px; padding: 3px 8px; font-size: 12px; }
     .question { border-left: 3px solid var(--focus); padding-left: 12px; display: grid; gap: 3px; }
     .baseline-panel { display: grid; gap: 14px; border-block: 1px solid var(--line); padding-block: 14px; }
+    #scenario-comparison[hidden] { display: none; }
     .baseline-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
     .baseline-grid > div, .baseline-block { min-width: 0; display: grid; gap: 5px; }
     .baseline-contexts { display: grid; gap: 12px; }
@@ -260,15 +261,21 @@
         <header class="detail-head"><div><div id="unit-order" class="small muted"></div><h2 id="unit-title"></h2></div><div id="unit-badges" class="badges"></div></header>
         <section class="baseline-panel" aria-labelledby="baseline-title">
           <div class="section-head"><h3 id="baseline-title">Original logic before this change</h3><span class="small muted">Read this before the diff</span></div>
+          <div id="context-side-controls" class="cg-toolbar" role="group" aria-label="Before and after explanations">
+            <button type="button" data-context-side="baseline">改动前</button>
+            <button type="button" data-context-side="post_change">改动后</button>
+          </div>
+          <p id="context-side-note" class="small muted"></p>
           <div class="baseline-block"><span class="small muted">Architecture</span><p id="baseline-architecture"></p></div>
           <div id="context-guide" class="context-guide"></div>
           <div class="baseline-grid">
             <div><span class="small muted">Responsibilities</span><ul id="baseline-responsibilities" class="compact-list"></ul></div>
             <div><span class="small muted">Data and state</span><ul id="baseline-data-state" class="compact-list"></ul></div>
           </div>
-          <div class="baseline-block"><span class="small muted">Original flow</span><ol id="baseline-flow" class="compact-list"></ol></div>
-          <div class="baseline-block"><span class="small muted">Frozen pre-change context</span><div id="baseline-contexts" class="baseline-contexts"></div></div>
+          <div class="baseline-block"><span id="context-flow-label" class="small muted">Original flow</span><ol id="baseline-flow" class="compact-list"></ol></div>
+          <div class="baseline-block"><span id="context-source-label" class="small muted">Frozen pre-change context</span><div id="baseline-contexts" class="baseline-contexts"></div></div>
         </section>
+        <section id="scenario-comparison" class="baseline-panel"></section>
         <div class="question"><span class="small muted">Review question</span><strong id="unit-question"></strong></div>
         <div class="unit-conclusion"><span id="unit-conclusion-status" class="badge"></span><strong id="unit-conclusion"></strong></div>
         <div class="before-after"><div><span class="small muted">Before</span><p id="unit-before"></p></div><span aria-hidden="true">→</span><div><span class="small muted">After</span><p id="unit-after"></p></div></div>
@@ -346,6 +353,7 @@
       const outcome = model.outcome || { confirmed: [], defects: [], unproven: [], recommendation: {} };
       const stateKey = `mandiff:${report.diff_digest || 'template'}:review-state`;
       let selected = 0;
+      let contextSide = 'baseline';
       let renderedDiffKey = '';
       let searchTimer;
       let state = Object.fromEntries(units.map(unit => [unit.id, {
@@ -646,7 +654,23 @@
         const unit = units[selected]; const unitState = state[unit.id]; const findings = (unit.finding_ids || []).map(findingById).filter(Boolean);
         const unitLanguage = (unit.files || []).map(languageForPath).find(Boolean) || null;
         const unitSymbols = [...(unit.symbols || []), ...(unit.entry_points || []), ...(unit.call_path || [])];
-        const baseline = baselineFor(unit);
+        if (!unit.post_change) contextSide = 'baseline';
+        const baseline = contextSide === 'post_change' ? unit.post_change : baselineFor(unit);
+        const zhContext = /[\u3400-\u9fff]/u.test(unit.title + baseline.architecture);
+        const ct = (en, cn) => zhContext ? cn : en;
+        document.querySelectorAll('[data-context-side]').forEach(button => {
+          const after = button.dataset.contextSide === 'post_change';
+          button.textContent = after ? ct('After change', '改动后') : ct('Before change', '改动前');
+          button.disabled = after && !unit.post_change;
+          button.setAttribute('aria-pressed', String(button.dataset.contextSide === contextSide));
+        });
+        byId('baseline-title').textContent = contextSide === 'post_change' ? ct('System after this change', '改动后的系统与运行过程') : ct('System before this change', '改动前的系统与运行过程');
+        byId('context-flow-label').textContent = contextSide === 'post_change' ? ct('Updated flow', '改动后的步骤') : ct('Original flow', '改动前的步骤');
+        byId('context-source-label').textContent = contextSide === 'post_change' ? ct('Frozen post-change source', '改动后版本的源码') : ct('Frozen pre-change source', '改动前版本的源码');
+        byId('context-side-note').textContent = unit.post_change ? ct('Follow the same inputs on both sides. Compare results below.', '两边按相同场景和输入讲解，结果差异见下方对照。') : ct('This unit has no post-change walkthrough; the summary below does not replace it.', '本单元未提供改动后的完整讲解；下方摘要不能替代运行过程说明。');
+        const comparisons = unit.comparison || [];
+        byId('scenario-comparison').hidden = !comparisons.length;
+        byId('scenario-comparison').innerHTML = comparisons.length ? `<h3>${ct('Same-input comparison', '相同条件下的前后对照')}</h3><div class="table-wrap"><table><thead><tr>${[ct('Scenario and input', '场景与输入'), ct('Before', '改动前'), ct('After', '改动后'), ct('Effect on the review', '差异及影响')].map(label => `<th>${escapeHtml(label)}</th>`).join('')}</tr></thead><tbody>${comparisons.map(row => `<tr><td><strong>${escapeHtml(row.scenario)}</strong><p>${escapeHtml(row.input)}</p></td><td>${escapeHtml(row.before)}${evidenceRefs(row.before_context_refs)}</td><td>${escapeHtml(row.after)}${evidenceRefs(row.after_context_refs)}</td><td>${escapeHtml(row.impact)}</td></tr>`).join('')}</tbody></table></div>` : '';
         renderList(); renderDiff();
         byId('unit-order').textContent = `Step ${unit.order}/${units.length}`; byId('unit-title').innerHTML = narrativeHtml(unit.title, unitSymbols, unitLanguage); byId('unit-question').innerHTML = narrativeHtml(unit.question, unitSymbols, unitLanguage);
         byId('baseline-architecture').innerHTML = narrativeHtml(baseline.architecture || 'Unknown', unitSymbols, unitLanguage);
@@ -660,7 +684,7 @@
           const language = languageForPath(source.path);
           const excerpt = source.excerpt ? `<pre><code>${syntaxHighlight(source.excerpt, language, '')}</code></pre>` : '<span class="small muted">Frozen excerpt unavailable.</span>';
           return `<details class="baseline-context"><summary>${evidenceRef(id)}</summary><span class="small muted">${escapeHtml(source.snapshot)} at ${escapeHtml(source.revision)}</span>${excerpt}</details>`;
-        }).join('') || '<span class="small muted">No frozen pre-change context.</span>';
+        }).join('') || '<span class="small muted">No frozen context.</span>';
         byId('unit-conclusion-status').textContent = unit.conclusion?.status || 'unproven'; byId('unit-conclusion').innerHTML = narrativeHtml(unit.conclusion?.statement || 'No unit conclusion provided.', unitSymbols, unitLanguage);
         byId('unit-before').innerHTML = narrativeHtml(unit.before, unitSymbols, unitLanguage); byId('unit-after').innerHTML = narrativeHtml(unit.after, unitSymbols, unitLanguage);
         byId('unit-badges').innerHTML = `<span class="badge">${escapeHtml(unit.lane)}</span><span class="badge">${escapeHtml(unit.importance)}</span><span class="badge">${unit.changed_lines || 0} changed lines</span>`;
@@ -771,6 +795,7 @@
       document.addEventListener('change', event => {
         if (event.target.matches('input[type="radio"][data-check]')) { const current = state[units[selected].id]; const id = event.target.dataset.check; current.check_results[id] = event.target.value; save(); render(); status(`${id} marked ${checkLabels[event.target.value]}.`); }
       });
+      document.querySelectorAll('[data-context-side]').forEach(button => button.addEventListener('click', () => { contextSide = button.dataset.contextSide; render(); }));
       byId('diff-search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderDiff, 180); });
       byId('review-note').addEventListener('input', event => { state[units[selected].id].note = event.target.value; save(); });
       document.addEventListener('input', event => { if (event.target.matches('[data-finding-rationale]')) { state[units[selected].id].finding_reviews[event.target.dataset.findingRationale].rationale = event.target.value; save(); } });

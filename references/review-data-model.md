@@ -4,7 +4,7 @@ Use one canonical model for Markdown, HTML, and reviewer-state export. Field nam
 
 When JSON Schema tooling is available, validate the immutable report against `../assets/review-model.schema.json`.
 
-During normal authoring, use the compact `analysis-draft.json` schema 2.0 created by `mandiff.py prepare`. Semantic keys replace final IDs, and optional fields may be omitted. `mandiff.py finalize` freezes declared context, assigns IDs, derives completeness and outcome aggregation, and writes expanded `analysis.json` schema 1.0 before invoking the canonical compiler. Do not hand-author the source manifest or canonical report. The low-level manifest plus schema 1.0 analysis path remains available only for compatibility and diagnostics.
+During normal authoring, use compact `analysis-draft.json` schema 2.1 created by `mandiff.py prepare`. Semantic keys replace final IDs. `finalize` freezes declared context, assigns IDs, derives completeness/outcome aggregation, and writes expanded `analysis.json` schema 1.0 with `report_schema_version: 1.7` before compiling the canonical report. Main units must explain both versions and their same-input comparison. Completed 2.0 drafts and the low-level schema 1.0 path remain readable with their original requirements; do not use legacy authoring to skip the changed-system explanation.
 
 ## Evidence classes
 
@@ -85,13 +85,14 @@ Record context sources at the top level with `id`, `kind`, `snapshot`, `revision
 
 ## Review unit
 
-Every unit keeps the same stable field names. In 1.6, a main critical/normal unit requires original context, a claim, a check, a conclusion, and at least one mechanism step. Include entry/call paths, invariants, consumers, compatibility, failure modes and unknowns when they affect the decision; empty collections are allowed without inventing filler. Supporting/context units can also omit irrelevant claims and checks. Evidence coverage and snapshot validation are never optional.
+Every unit keeps the same stable field names. In 1.7, a main critical/normal unit requires original and post-change context, a same-input comparison, a claim, a check, a conclusion, and at least one mechanism step. Include entry/call paths, invariants, consumers, compatibility, failure modes and unknowns when they affect the decision; empty ancillary collections are allowed without inventing filler. Supporting/context units can omit irrelevant claims and checks. Evidence coverage and snapshot validation are never optional.
 
 - Identity: `id`, `order`, `title`, `lane`, and `importance`.
 - Decision frame: one `question` and one falsifiable `contract`.
 - Decision output: one `conclusion` with status, statement, and evidence references.
 - State delta: symmetrical `before` and `after` statements.
 - Pre-change baseline: `architecture`, `responsibilities`, ordered `flow_steps`, `data_and_state`, `context_refs`. Main units require frozen excerpts from the original side. `views` supplies tables or interactions; `guide` supplies diagrams and scenario/stack navigation. Their schema optionality accommodates differing needs, not a default to omit them. Combine complementary forms and control their scope using [presentation.md](presentation.md). Optional `guide.views` selects graph types from `structure`, `calls`, `flow`; `guide.expanded` defaults to true, with false reserved for supplementary detail. `context_sources.start_line` optionally preserves the excerpt's one-based original line.
+- Post-change explanation: `post_change` uses the same structure and result-version evidence. `comparison` aligns each scenario's shared input, before/after results, impact, and the respective evidence references. Keep matching scenarios and observation points recognizable.
 - Execution: include `entry_points` and `call_path` when useful; `mechanism_steps` needs at least one truthful explanation, with no arbitrary three-step minimum in 1.6.
 - Constraints: `invariants`, `consumers`, and `compatibility`.
 - Evidence: author `depends_on`, `symbols`, and the declarative evidence `id`/`label`/`summary`; let the compiler derive `files`, `evidence_ids`, exact `diff`, ordered `diff_segments`, and stable `anchors`. Segments locate bytes but do not define completeness: the compiler derives the canonical display independently as each source file's exact metadata followed by the unit's complete owned hunks, then requires both the segments and `diff` to reproduce it.
@@ -198,6 +199,8 @@ Before rendering, validate both JSON shape and these cross-record rules. `script
 
 13. Optional `baseline.views` rows cite the owning baseline's context. Their kind is table, sequence, state, or relationships; columns map to from/label/to, never changed-hunk evidence. The expander resolves shared context refs to individual rows before validation.
 
-Older schema 1.3/1.4/1.5 reports remain readable with their original constraints. Do not invent original diagrams or stacks from after-change prose. New compilations emit 1.6, where prose without a diagram is a valid deliberate choice. Optional supplied graphs retain all their structural checks.
+Schema 1.7 adds `post_change` using the same structure as `baseline`, plus `comparison` rows: scenario, input, before, after, impact, before_context_refs, after_context_refs. Main critical/normal units require meaningful responsibilities, flow, state, and frozen sources on both sides, plus a comparison. Each reference set belongs to its corresponding side; snapshot types and revision identities must match the selected source artifacts. Patch/provider excerpts require explicit `side: before` or `side: after` to disambiguate the two versions. Graphs and stacks retain their structural checks on both sides.
+
+Older schema 1.3–1.6 reports retain their original constraints. Do not invent either version's diagrams or stacks from summary prose. New 2.1 drafts compile to 1.7; completed 2.0 drafts retain the 1.6 compatibility path. HTML explicitly indicates when an older report lacks a post-change walkthrough.
 
 The renderer must refuse invalid reports before creating output. A visually complete page is not evidence that its model is coherent.

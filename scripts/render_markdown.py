@@ -248,56 +248,66 @@ def render_markdown(report: dict[str, Any]) -> str:
     context_by_id = {item["id"]: item for item in report["context_sources"]}
     context_anchors = set()
     for unit in report["units"]:
-        baseline = _baseline(unit)
-        lines.extend(
-            [
-                "",
-                f"## Step {unit['order']}/{total_units}: {unit['title']}",
-                "",
-                "### Original logic before this change",
-                "",
-                f"**Architecture:** {baseline['architecture']}",
-                "",
-                "**Responsibilities:**",
-                "",
-                *_bullets(baseline.get("responsibilities", [])),
-                "",
-                "**Original flow:**",
-                "",
-                *[
-                    f"{index}. {step}"
-                    for index, step in enumerate(baseline.get("flow_steps", []), start=1)
-                ],
-                "",
-                "**Data and state:**",
-                "",
-                *_bullets(baseline.get("data_and_state", [])),
-                "",
-                f"**Frozen context:** {format_refs(baseline.get('context_refs', []))}",
-                "",
-            ]
-        )
-        if baseline.get("guide"):
-            lines.extend(guide_markdown(baseline["guide"], format_refs, _cell))
-        elif report["schema_version"] != "1.6" and not baseline.get("views"):
-            lines.extend(["This report has no structured pre-change diagrams or source-derived stack walkthrough.", ""])
-        lines.extend(views_markdown(baseline.get("views", []), format_refs, _cell))
-        for context_id in baseline.get("context_refs", []):
-            source = context_by_id.get(context_id)
-            if not source or not source.get("excerpt"):
+        lines.extend(["", f"## Step {unit['order']}/{total_units}: {unit['title']}", ""])
+        for side, baseline in (("baseline", _baseline(unit)), ("post_change", unit.get("post_change"))):
+            if not baseline:
                 continue
+            context_title = "### Original logic before this change" if side == "baseline" else "### System after this change / 改动后的系统与运行过程"
             lines.extend(
                 [
-                    f'<a id="context-{context_id.lower()}"></a>' if context_id not in context_anchors else "",
-                    f"#### {_reference(context_id, reference_catalog, changed_evidence)}",
                     "",
-                    f"Snapshot: `{source['snapshot']}` at `{source['revision']}`",
+                    context_title,
                     "",
-                    *_fenced(source["excerpt"]),
+                    f"**Architecture:** {baseline['architecture']}",
+                    "",
+                    "**Responsibilities:**",
+                    "",
+                    *_bullets(baseline.get("responsibilities", [])),
+                    "",
+                    "**Flow:**",
+                    "",
+                    *[
+                        f"{index}. {step}"
+                        for index, step in enumerate(baseline.get("flow_steps", []), start=1)
+                    ],
+                    "",
+                    "**Data and state:**",
+                    "",
+                    *_bullets(baseline.get("data_and_state", [])),
+                    "",
+                    f"**Frozen context:** {format_refs(baseline.get('context_refs', []))}",
                     "",
                 ]
             )
-            context_anchors.add(context_id)
+            if baseline.get("guide"):
+                lines.extend(guide_markdown(baseline["guide"], format_refs, _cell))
+            elif side == "baseline" and report["schema_version"] not in {"1.6", "1.7"} and not baseline.get("views"):
+                lines.extend(["This report has no structured pre-change diagrams or source-derived stack walkthrough.", ""])
+            lines.extend(views_markdown(baseline.get("views", []), format_refs, _cell))
+            for context_id in baseline.get("context_refs", []):
+                source = context_by_id.get(context_id)
+                if not source or not source.get("excerpt"):
+                    continue
+                lines.extend(
+                    [
+                        f'<a id="context-{context_id.lower()}"></a>' if context_id not in context_anchors else "",
+                        f"#### {_reference(context_id, reference_catalog, changed_evidence)}",
+                        "",
+                        f"Snapshot: `{source['snapshot']}` at `{source['revision']}`",
+                        "",
+                        *_fenced(source["excerpt"]),
+                        "",
+                    ]
+                )
+                context_anchors.add(context_id)
+        if unit.get("comparison"):
+            lines.extend(["### Same-input comparison / 相同条件下的前后对照", "", "| Scenario / 场景 | Input / 输入 | Before / 改动前 | After / 改动后 | Impact / 影响 |", "|---|---|---|---|---|"])
+            for row in unit["comparison"]:
+                values = [row["scenario"], row["input"], row["before"] + " " + format_refs(row["before_context_refs"]), row["after"] + " " + format_refs(row["after_context_refs"]), row["impact"]]
+                lines.append("| " + " | ".join(_cell(value) for value in values) + " |")
+            lines.append("")
+        elif not unit.get("post_change"):
+            lines.extend(["Post-change walkthrough unavailable for this unit; do not infer it from the summary.", ""])
         lines.extend(
             [
                 f"**Review question:** {unit['question']}",

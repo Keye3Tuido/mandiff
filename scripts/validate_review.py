@@ -186,6 +186,49 @@ def _detect_dependency_cycles(units: dict[str, dict[str, Any]], errors: list[str
         visit(identifier, [])
 
 
+def _validate_paired_context(unit, contexts, sources, errors):
+    """Tie each explanation to its side of the selected source artifacts."""
+    unit_sources = {anchor["source_artifact_id"] for anchor in unit["anchors"]}
+    snapshots = {
+        "baseline": {"commit": {"base"}, "commit_range": {"base"}, "staged": {"head"}, "unstaged": {"index"}, "patch": {"base", "patch"}, "pull_request": {"base", "provider"}},
+        "post_change": {"commit": {"head"}, "commit_range": {"head"}, "staged": {"index"}, "unstaged": {"working_tree"}, "patch": {"head", "patch"}, "pull_request": {"head", "provider"}},
+    }
+    for side, expected_side in (("baseline", "before"), ("post_change", "after")):
+        context = unit.get(side, {})
+        # Required sides are enforced for main units below. Supporting units
+        # may supply either side, but supplied evidence still needs validation.
+        if not context:
+            continue
+        refs = context.get("context_refs", [])
+        _check_refs(refs, set(contexts), f"{unit['id']}.{side}.context_refs", errors)
+        records = [contexts[ref] for ref in refs if ref in contexts]
+
+        def matches(record, artifact):
+            if record["snapshot"] not in snapshots[side].get(artifact["provenance"], set()):
+                return False
+            if record.get("side", expected_side) != expected_side:
+                return False
+            if record["snapshot"] in {"patch", "provider"} and record.get("side") != expected_side:
+                return False
+            revision = artifact.get("base" if side == "baseline" else "head")
+            return not revision or record["revision"] == revision
+
+        artifacts = [sources[key] for key in unit_sources if key in sources]
+        for record in records:
+            if not any(matches(record, artifact) for artifact in artifacts):
+                errors.append(f"{unit['id']}.{side}: {record['id']} must match the selected {expected_side} snapshot and revision")
+            excerpt = record.get("excerpt")
+            if not excerpt or record["fingerprint"] != hashlib.sha256(excerpt.encode("utf-8")).hexdigest():
+                errors.append(f"{unit['id']}.{side}: {record['id']} requires a frozen excerpt with matching fingerprint")
+        for artifact in artifacts:
+            if not any(matches(record, artifact) for record in records):
+                errors.append(f"{unit['id']}.{side}: requires {expected_side} context for {artifact['provenance']} evidence")
+    for row in unit.get("comparison", []):
+        for side, field in (("baseline", "before_context_refs"), ("post_change", "after_context_refs")):
+            if not set(row[field]).issubset(unit.get(side, {}).get("context_refs", [])):
+                errors.append(f"{unit['id']}.comparison.{field}: must cite {side}.context_refs")
+
+
 def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
     """Return deterministic validation errors; an empty list means renderable."""
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
@@ -283,7 +326,7 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
         _check_refs(unit.get("verification_ids", []), set(verifications), f"{unit_id}.verification_ids", errors)
         baseline = unit.get("baseline", {})
         _check_refs(baseline.get("context_refs", []), context_ids, f"{unit_id}.baseline.context_refs", errors)
-        if baseline and (report.get("schema_version") in {"1.4", "1.5", "1.6"} or baseline.get("guide") or baseline.get("views")):
+        if baseline and (report.get("schema_version") in {"1.4", "1.5", "1.6", "1.7"} or baseline.get("guide") or baseline.get("views")):
             allowed_snapshots: set[str] = set()
             required_snapshot_groups: list[tuple[str, set[str]]] = []
             snapshot_by_provenance = {
@@ -333,6 +376,15 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
             for row in view["rows"]:
                 if not set(row["context_refs"]).issubset(baseline.get("context_refs", [])):
                     errors.append(f"{unit_id}.baseline.views: every row must cite baseline.context_refs")
+        post_change = unit.get("post_change", {})
+        if (report.get("schema_version") == "1.7" and (baseline or post_change)) or post_change:
+            _validate_paired_context(unit, contexts, sources, errors)
+        if post_change.get("guide"):
+            errors.extend(validate_guide(unit, report, "post_change"))
+        for view in post_change.get("views", []):
+            for row in view["rows"]:
+                if not set(row["context_refs"]).issubset(post_change.get("context_refs", [])):
+                    errors.append(f"{unit_id}.post_change.views: every row must cite post_change.context_refs")
 
         unit_segments: list[tuple[str, int, int]] = []
         displayed_chunks: list[bytes] = []
@@ -464,8 +516,8 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
             _check_refs(check.get("claim_ids", []), local_claims, f"{unit_id}.check[{check.get('id')}].claim_ids", errors)
 
         if unit.get("lane") == "main" and unit.get("importance") in {"critical", "normal"}:
-            adaptive = report.get("schema_version") == "1.6"
-            if report.get("schema_version") in {"1.4", "1.5", "1.6"}:
+            adaptive = report.get("schema_version") in {"1.6", "1.7"}
+            if report.get("schema_version") in {"1.4", "1.5", "1.6", "1.7"}:
                 if not baseline:
                     errors.append(f"{unit_id}.baseline: main critical/normal units require original-logic context")
                 else:
@@ -480,6 +532,12 @@ def validate_report(report: Any, schema_path: Path = SCHEMA_PATH) -> list[str]:
                         errors.append(f"{unit_id}.baseline.data_and_state: requires at least one item")
                     if not baseline.get("context_refs"):
                         errors.append(f"{unit_id}.baseline.context_refs: requires frozen pre-change context")
+            if report.get("schema_version") == "1.7":
+                for field in ("architecture", "responsibilities", "flow_steps", "data_and_state", "context_refs"):
+                    if not post_change.get(field):
+                        errors.append(f"{unit_id}.post_change.{field}: requires an explanation of the changed system")
+                if not unit.get("comparison"):
+                    errors.append(f"{unit_id}.comparison: requires before/after results for the same scenario input")
             required_collections = (
                 "entry_points",
                 "call_path",

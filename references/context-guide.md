@@ -1,6 +1,6 @@
-# Explain the original system with diagrams and a walkthrough
+# Explain both versions with diagrams and walkthroughs
 
-This is the `baseline.guide` contract for diagrams and scenario/stack navigation. Use [presentation.md](presentation.md) to decide which relationships, scenarios, and details the reader needs. Combine the guide with parameter or responsibility tables where they complement it. Schema 1.6 permits omission for self-contained explanations; this is not a default instruction to omit graphs for speed. The compiler renders HTML and Markdown; do not author SVG or Mermaid yourself.
+This is the shared contract for `baseline.guide` and `post_change.guide`: diagrams and scenario/stack navigation before and after the change. Use [presentation.md](presentation.md) to select relationships and detail, align scenario inputs, and explain the difference. Combine guides with complementary tables. Graphs may be omitted for self-contained explanations, not as a default speed shortcut. The compiler renders HTML and Markdown; do not author SVG or Mermaid yourself.
 
 ## Reader journey
 
@@ -8,7 +8,7 @@ This is the `baseline.guide` contract for diagrams and scenario/stack navigation
 2. Select diagrams for architecture/dependencies, calls, or flow. Every arrow has a direction, a concrete meaning, and evidence. Containment, dependency, reading/writing, a synchronous call, and scheduling work are different relations. A stack walkthrough may already explain a simple call chain without another call diagram.
 3. Start with a concrete trigger and input. Explain the original flow including branches, loops, failure exits, and asynchronous continuations that affect the review. Draw them when a flow diagram adds understanding.
 4. Walk through at least one complete scenario from entry to result. At each step explain the current function, its action/result, and the active stack from outermost caller to current function. Every drawn flow step must appear in a scenario; add scenarios for other branches. State concrete inputs and starting state. A repeated function call and a return should visibly push and remove frames; do not retain a returned function.
-5. Connect the now-understood original behavior to the change, then show the exact diff.
+5. Repeat the explanation for the changed version with the same inputs and observation points. Connect differences in responsibilities, data, calls, state and results, then show the exact diff. Explicitly distinguish new prerequisites from existing ones.
 
 Keep a diagram focused on the behavior being reviewed. Split a large unit by behavior or explain shared architecture in an earlier dependency unit. Do not replace a useful diagram with a directory tree or make one giant graph of unrelated modules.
 
@@ -18,7 +18,7 @@ Keep a diagram focused on the behavior being reviewed. Split a large unit by beh
 
 The guide is expanded by default so its core explanation is visible. Use `guide.expanded: false` only for supplementary detail when another visible view already establishes the needed context. This controls initial HTML display; it does not remove content from either format.
 
-`guide.nodes` contains `{id, label, kind, responsibility, context_refs}`. IDs are unit-local semantic keys, never visible titles. `kind` is `component`, `function`, `data`, or `external`. Labels name real components or symbols; responsibilities explain what they do. Context refs resolve to the owning baseline's frozen sources, including a path and source locator.
+`guide.nodes` contains `{id, label, kind, responsibility, context_refs}`. IDs are local to each side's guide, never visible titles. `kind` is `component`, `function`, `data`, or `external`. Labels name real components or symbols; responsibilities explain what they do. Context refs resolve to that side's frozen sources, including a path and source locator.
 
 `guide.relations` contains `{from, to, kind, label, context_refs}`. Kinds are `contains`, `depends_on`, `calls`, `dispatches`, `reads`, and `writes`. The label describes the actual relationship in the report language. A `calls` arrow is caller to callee; `dispatches` schedules later work and must not imply a shared synchronous stack. Keep recursive and cyclic dependencies when the code establishes them.
 
@@ -37,7 +37,7 @@ All walkthroughs are **source-derived illustrations**, never captured runtime st
 
 Every node, relation, flow step, transition, and walkthrough entry cites context refs. The pipeline verifies IDs, directed edges, graph reachability, scenario continuity, stack/call consistency, and excerpt hashes. It cannot prove that an AI interpretation follows from code: the semantic pass must check every arrow and described effect against its cited lines.
 
-Use the pre-change revision for each selected source. Shared IDs do not allow mixing incompatible `HEAD` and index states in one narrative. Include only code needed to explain the behavior, preserving complete relevant function bodies and conditions. Never label modified code as the original system. Keep unresolved links visible as missing context instead of drawing guessed arrows.
+Use the corresponding revision for each side. Diagram and stack references must belong to that side's context_refs; the same guide contract is validated independently for baseline and post_change. Shared IDs do not allow mixing incompatible versions. Preserve complete relevant function bodies and conditions. Keep unresolved links visible as missing context instead of drawing guessed arrows.
 
 ## Presentation and compatibility
 

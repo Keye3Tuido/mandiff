@@ -534,7 +534,7 @@ def compile_report(inventory_path: Path, analysis_path: Path) -> dict[str, Any]:
         else "immutable"
     )
     report = {
-        "schema_version": "1.6",
+        "schema_version": analysis.get("report_schema_version", "1.6"),
         "report": report_meta,
         "source_artifacts": source_artifacts,
         "summary": {

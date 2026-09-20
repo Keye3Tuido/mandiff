@@ -90,6 +90,8 @@ This section must appear before the review question, before/after summary, and e
 
 Combine useful relationship diagrams, tables, representative scenarios, and call/stack explanations using [presentation.md](presentation.md). Control what each shows and how much detail it includes; do not default to prose or a table as a speed shortcut. Keep the overview and core walkthrough visible, with source and supplementary detail accessible. Relationships cite original code; stacks are explicitly source-derived illustrations. Explain unknown execution instead of fabricating it.
 
+Repeat this explanation for `post_change` using result-version source. Keep the same input, business scenario and observation points; show where the changed path diverges and its result. Follow both versions with a `comparison` table linking each result to its own evidence. Unchanged structure can reuse verified descriptions; the changed execution must be understandable without inferring it from the diff or a one-line After summary.
+
 For main `critical` or `normal` units, never substitute the changed hunk, commit message, or inferred intent for pre-change source. If the original flow cannot be established, classify it as missing context and recommend expanding scope before presenting the diff as reviewable.
 
 ### Goal
